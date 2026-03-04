@@ -799,40 +799,80 @@ class LocalPlayer extends BasePlayer {
                     input.consumeInteract();
                 }
             }
-            if (input.isWork() && this.nearbyObj.type === 'presScreen') {
-                if (!window._isPresentationActive) {
-                    // Abrir modal de subida si no hay nada proyectado
-                    document.getElementById('upload-pres-modal').classList.remove('hidden');
-                } else {
-                    // Si ya hay algo, ver si la quiero apagar
-                    if (window._presentationOwner === this.id || this.isLocal) {
-                        window.dispatchEvent(new Event("pres-stop"));
-                    }
-                }
-                input.consumeWork();
-            }
+        }
+    }
+}
 
-            if (this.nearbyObj.type === 'desk' && this.nearbyObj.id === this.myDeskId) {
-                if (input.isWork()) {
-                    if (!this.isWorking) {
-                        this.isWorking = true;
-                        this.x = this.nearbyObj.rect.x + TILE / 2;
-                        this.y = this.nearbyObj.rect.y + 40;
-                    } else {
-                        this.isWorking = false;
-                        this.y += 10;
-                    }
-                    input.consumeWork();
-                }
+class RemotePlayer extends BasePlayer {
+    constructor(id, x, y, name, role, props) {
+        super(id, x, y, false);
+        this.nickname = name;
+        this.role = role || 'empleado';
+        if (props) this.props = props;
 
-                if (input.isPlatform()) {
-                    document.getElementById('system-choice-modal').classList.remove('hidden');
-                    input.consumePlatform();
-                }
-            }
-            if (this.nearbyObj.type === 'archivero' || this.nearbyObj.type === 'presScreen' || this.nearbyObj.id === this.myDeskId) {
-                this.nearbyObj.highlighted = true;
-            }
+        // Variables de interpolación (suavizado)
+        this.targetX = x;
+        this.targetY = y;
+        this.updateTime = performance.now();
+    }
+
+    update(dt) {
+        // Interpolación lineal hacia targetX, targetY
+        const speed = 10 * dt;
+        this.x += (this.targetX - this.x) * speed;
+        this.y += (this.targetY - this.y) * speed;
+
+        // Calcular si se está moviendo usando la distancia al target
+        const dist = Math.sqrt(Math.pow(this.targetX - this.x, 2) + Math.pow(this.targetY - this.y, 2));
+        const isMoving = dist > 2 && !this.isWorking;
+
+        this.updateAnim(dt, isMoving);
+    }
+
+    // update from server network
+    updateFromServer(data) {
+        this.targetX = data.x;
+        this.targetY = data.y;
+        this.frame = data.frame;
+        this.isWorking = data.isWorking;
+        this.updateTime = performance.now();
+    }
+}
+
+if (input.isWork() && this.nearbyObj.type === 'presScreen') {
+    if (!window._isPresentationActive) {
+        // Abrir modal de subida si no hay nada proyectado
+        document.getElementById('upload-pres-modal').classList.remove('hidden');
+    } else {
+        // Si ya hay algo, ver si la quiero apagar
+        if (window._presentationOwner === this.id || this.isLocal) {
+            window.dispatchEvent(new Event("pres-stop"));
+        }
+    }
+    input.consumeWork();
+}
+
+if (this.nearbyObj.type === 'desk' && this.nearbyObj.id === this.myDeskId) {
+    if (input.isWork()) {
+        if (!this.isWorking) {
+            this.isWorking = true;
+            this.x = this.nearbyObj.rect.x + TILE / 2;
+            this.y = this.nearbyObj.rect.y + 40;
+        } else {
+            this.isWorking = false;
+            this.y += 10;
+        }
+        input.consumeWork();
+    }
+
+    if (input.isPlatform()) {
+        document.getElementById('system-choice-modal').classList.remove('hidden');
+        input.consumePlatform();
+    }
+}
+if (this.nearbyObj.type === 'archivero' || this.nearbyObj.type === 'presScreen' || this.nearbyObj.id === this.myDeskId) {
+    this.nearbyObj.highlighted = true;
+}
         }
     }
 }
@@ -1237,9 +1277,122 @@ class UIController {
 }
 
 /* =====================================================================
-   7. MAIN ENGINE BOOTSTRAP
+   7. MULTIPLAYER NETWORK CONTROLLER (SOCKET.IO)
 ====================================================================== */
-let _map, _input, _renderer, _ui;
+class NetworkController {
+    constructor(player, map, ui) {
+        this.p = player;
+        this.map = map;
+        this.ui = ui;
+
+        this.remotePlayers = {}; // id -> RemotePlayer
+
+        // --- CONECTAR AL BACKEND RENDER ---
+        // DEBES CAMBIAR ESTA URL POR TU URL DE RENDER.COM
+        this.socket = io('https://edusmart-multiplayer.onrender.com');
+
+        this.bindEvents();
+    }
+
+    bindEvents() {
+        this.socket.on('connect', () => {
+            console.log("Conectado al servidor multijugador!");
+
+            // Avisar que entramos
+            this.socket.emit('playerJoined', {
+                x: this.p.x,
+                y: this.p.y,
+                nickname: this.p.nickname,
+                role: this.p.role,
+                props: this.p.props,
+                frame: this.p.frame,
+                isWorking: this.p.isWorking
+            });
+        });
+
+        this.socket.on('currentPlayers', (players) => {
+            for (let id in players) {
+                if (id === this.socket.id) continue;
+                this.addRemotePlayer(players[id]);
+            }
+        });
+
+        this.socket.on('newPlayer', (playerData) => {
+            this.addRemotePlayer(playerData);
+        });
+
+        this.socket.on('playerMoved', (data) => {
+            if (this.remotePlayers[data.id]) {
+                this.remotePlayers[data.id].updateFromServer(data);
+            }
+        });
+
+        this.socket.on('playerDisconnected', (id) => {
+            if (this.remotePlayers[id]) {
+                delete this.remotePlayers[id];
+            }
+        });
+
+        this.socket.on('chatMessage', (msgObj) => {
+            let msg = document.createElement('p');
+            msg.innerHTML = `<b style="color:var(--accent)">${msgObj.nick}:</b> ${msgObj.text}`;
+            document.getElementById('chat-messages').appendChild(msg);
+            document.getElementById('chat-messages').scrollTop = 9999;
+        });
+
+        // Interceptar SendChat de UI
+        const oldSendChat = this.ui.sendChat.bind(this.ui);
+        this.ui.sendChat = () => {
+            let ipt = document.getElementById('chat-input');
+            if (!ipt.value.trim()) return;
+            this.socket.emit('chatMessage', { nick: this.p.nickname, text: ipt.value });
+            ipt.value = '';
+        }
+    }
+
+    addRemotePlayer(data) {
+        if (!this.remotePlayers[data.id]) {
+            this.remotePlayers[data.id] = new RemotePlayer(
+                data.id, data.x, data.y, data.nickname, data.role, data.props
+            );
+            this.remotePlayers[data.id].isWorking = data.isWorking;
+            this.remotePlayers[data.id].frame = data.frame;
+        }
+    }
+
+    // Llamado 10 veces por segundo idealmente
+    sendLocalUpdate() {
+        if (!this.socket.connected) return;
+
+        // Solo enviar si hubo cambio real para optimizar
+        if (this.lastX !== this.p.x || this.lastY !== this.p.y || this.lastFrame !== this.p.frame || this.lastWork !== this.p.isWorking) {
+            this.socket.emit('playerMoved', {
+                x: this.p.x,
+                y: this.p.y,
+                frame: this.p.frame,
+                isWorking: this.p.isWorking
+            });
+
+            this.lastX = this.p.x; this.lastY = this.p.y;
+            this.lastFrame = this.p.frame; this.lastWork = this.p.isWorking;
+        }
+    }
+
+    update(dt) {
+        for (let id in this.remotePlayers) {
+            this.remotePlayers[id].update(dt);
+        }
+    }
+
+    getRenderList() {
+        return Object.values(this.remotePlayers);
+    }
+}
+
+/* =====================================================================
+   8. MAIN ENGINE BOOTSTRAP
+====================================================================== */
+let _map, _input, _renderer, _ui, _network;
 let _player, _sonora;
 let _lastTime = 0, _frameCount = 0, _fpsTime = 0;
 let _isRunning = false;
@@ -1247,6 +1400,9 @@ window.gameEngineInputEnabled = true;
 
 window.addEventListener('init-engine', async () => {
     SpawnSystem.spawnPlayer(_player, _map);
+
+    // Arrancar NetworkController
+    _network = new NetworkController(_player, _map, _ui);
 
     // Instanciar NPC Sonora (Recepción X:12, Y:35)
     _sonora = new NPC("npc_sonora", 12 * TILE, 35 * TILE, "Sonora", "Recepcionista");
@@ -1271,6 +1427,11 @@ window.onload = () => {
     _renderer.renderScene(_map, [_player]);
 };
 
+// Network transmit tick
+setInterval(() => {
+    if (_network) _network.sendLocalUpdate();
+}, 100); // 10 ticks/s
+
 function mainLoop(timestamp) {
     if (!_isRunning) return;
 
@@ -1294,14 +1455,23 @@ function mainLoop(timestamp) {
 
         if (_sonora) _sonora.update(_player); // Pass player for distance check
 
+        // Update remotes
+        if (_network) _network.update(dt);
+
         let rs = _map.floors.find(f => _player.x >= f.x * TILE && _player.x <= (f.x + f.w) * TILE && _player.y >= f.y * TILE && _player.y <= (f.y + f.h) * TILE);
         document.getElementById('current-room').textContent = rs ? rs.name : 'Jardín Exterior';
+
+        // Cambiar modo visual si está conectado a la red
+        if (_network && _network.socket.connected) {
+            document.getElementById('game-mode').textContent = "ONLINE";
+        }
 
         // Camera follow (lerp)
         _renderer.cx += (_player.x - _renderer.cx) * 5 * dt;
         _renderer.cy += (_player.y - _renderer.cy) * 5 * dt;
 
-        _renderer.renderScene(_map, [_player, _sonora]);
+        let remotes = _network ? _network.getRenderList() : [];
+        _renderer.renderScene(_map, [_player, _sonora, ...remotes]);
     }
 
     requestAnimationFrame(mainLoop);
