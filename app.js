@@ -799,6 +799,40 @@ class LocalPlayer extends BasePlayer {
                     input.consumeInteract();
                 }
             }
+            if (input.isWork() && this.nearbyObj.type === 'presScreen') {
+                if (!window._isPresentationActive) {
+                    // Abrir modal de subida si no hay nada proyectado
+                    document.getElementById('upload-pres-modal').classList.remove('hidden');
+                } else {
+                    // Si ya hay algo, ver si la quiero apagar
+                    if (window._presentationOwner === this.id || this.isLocal) {
+                        window.dispatchEvent(new Event("pres-stop"));
+                    }
+                }
+                input.consumeWork();
+            }
+
+            if (this.nearbyObj.type === 'desk' && this.nearbyObj.id === this.myDeskId) {
+                if (input.isWork()) {
+                    if (!this.isWorking) {
+                        this.isWorking = true;
+                        this.x = this.nearbyObj.rect.x + TILE / 2;
+                        this.y = this.nearbyObj.rect.y + 40;
+                    } else {
+                        this.isWorking = false;
+                        this.y += 10;
+                    }
+                    input.consumeWork();
+                }
+
+                if (input.isPlatform()) {
+                    document.getElementById('system-choice-modal').classList.remove('hidden');
+                    input.consumePlatform();
+                }
+            }
+            if (this.nearbyObj.type === 'archivero' || this.nearbyObj.type === 'presScreen' || this.nearbyObj.id === this.myDeskId) {
+                this.nearbyObj.highlighted = true;
+            }
         }
     }
 }
@@ -836,44 +870,6 @@ class RemotePlayer extends BasePlayer {
         this.frame = data.frame;
         this.isWorking = data.isWorking;
         this.updateTime = performance.now();
-    }
-}
-
-if (input.isWork() && this.nearbyObj.type === 'presScreen') {
-    if (!window._isPresentationActive) {
-        // Abrir modal de subida si no hay nada proyectado
-        document.getElementById('upload-pres-modal').classList.remove('hidden');
-    } else {
-        // Si ya hay algo, ver si la quiero apagar
-        if (window._presentationOwner === this.id || this.isLocal) {
-            window.dispatchEvent(new Event("pres-stop"));
-        }
-    }
-    input.consumeWork();
-}
-
-if (this.nearbyObj.type === 'desk' && this.nearbyObj.id === this.myDeskId) {
-    if (input.isWork()) {
-        if (!this.isWorking) {
-            this.isWorking = true;
-            this.x = this.nearbyObj.rect.x + TILE / 2;
-            this.y = this.nearbyObj.rect.y + 40;
-        } else {
-            this.isWorking = false;
-            this.y += 10;
-        }
-        input.consumeWork();
-    }
-
-    if (input.isPlatform()) {
-        document.getElementById('system-choice-modal').classList.remove('hidden');
-        input.consumePlatform();
-    }
-}
-if (this.nearbyObj.type === 'archivero' || this.nearbyObj.type === 'presScreen' || this.nearbyObj.id === this.myDeskId) {
-    this.nearbyObj.highlighted = true;
-}
-        }
     }
 }
 
