@@ -690,7 +690,7 @@ class BasePlayer {
         if (this.isWorking) {
             this.frame = 4; // sentado
         } else if (isMoving) {
-            this.timer += dt * 10;
+            this.timer += dt * 8; // Velocidad de caminata ajustada
             this.frame = Math.floor(this.timer) % 4;
         } else {
             this.frame = 0; this.timer = 0;
@@ -700,35 +700,202 @@ class BasePlayer {
 
     render(ctx) {
         const cx = this.x; const cy = this.y;
+        const skin = this.props.skin || '#ffdbac';
+        const hair = this.props.hair || '#27272a';
+        const shirt = this.props.shirt || '#3b82f6';
+        const pants = this.props.pants || '#1e293b';
 
-        ctx.fillStyle = "rgba(0,0,0,0.5)";
-        ctx.beginPath(); ctx.ellipse(cx, cy + 16, 16, 8, 0, 0, Math.PI * 2); ctx.fill();
+        const isFemale = this.props.body === 'femenino';
+        const hairStyle = this.props.hairStyle || 'corto';
+        const outfit = this.props.outfit || 'casual';
+        const acc = this.props.accessory || 'ninguno';
 
+        // 1. Sombra base
+        ctx.fillStyle = "rgba(0,0,0,0.3)";
+        ctx.beginPath(); ctx.ellipse(cx, cy + 18, 14, 6, 0, 0, Math.PI * 2); ctx.fill();
+
+        // Helpers de dibujo con borde grueso (Stardew Style)
+        const drawRect = (x, y, w, h, fill, border = '#0f172a', lw = 2) => {
+            ctx.fillStyle = fill; ctx.strokeStyle = border; ctx.lineWidth = lw;
+            ctx.beginPath(); ctx.rect(x, y, w, h); ctx.fill(); ctx.stroke();
+        };
+
+        const drawRoundedRect = (x, y, w, h, r, fill, border = '#0f172a', lw = 2) => {
+            ctx.fillStyle = fill; ctx.strokeStyle = border; ctx.lineWidth = lw;
+            ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill(); ctx.stroke();
+        };
+
+        const drawArc = (x, y, r, fill, border = '#0f172a', lw = 2, start = 0, end = Math.PI * 2) => {
+            ctx.fillStyle = fill; ctx.strokeStyle = border; ctx.lineWidth = lw;
+            ctx.beginPath(); ctx.arc(x, y, r, start, end); ctx.fill();
+            if (lw > 0) ctx.stroke();
+        };
+
+        // --- ANIMACIÓN DE CAMINADO ---
+        // Frames: 0 (Idle), 1 (Right leg up), 2 (Idle), 3 (Left leg up), 4 (Sitting)
+        let legL_Y = cy + 4, legR_Y = cy + 4;
+        let legL_H = 14, legR_H = 14;
+        let armL_Y = cy - 8, armR_Y = cy - 8;
+        let pOffset = isFemale ? 1 : 0; // Mujer camina con piernas poco más juntas
+
+        if (this.frame === 1) { legL_Y -= 4; legL_H -= 2; armR_Y -= 2; }
+        else if (this.frame === 3) { legR_Y -= 4; legR_H -= 2; armL_Y -= 2; }
+        else if (this.frame === 4) { legL_Y -= 2; legR_Y -= 2; legL_H = 10; legR_H = 10; }
+
+        // 2. Cabello Trasero (Si es largo o coleta)
+        if (hairStyle === 'largo') {
+            drawRoundedRect(cx - 15, cy - 25, 30, 35, 4, hair);
+        } else if (hairStyle === 'coleta') {
+            drawRoundedRect(cx - 12, cy - 25, 24, 25, 6, hair); // Coleta base
+            drawRoundedRect(cx - 8, cy - 5, 16, 12, 4, hair); // Cola
+        }
+
+        // 3. Brazo Trasero (Derecho)
+        let armW = isFemale ? 5 : 7;
+        let shoulderX = isFemale ? 10 : 12;
+        if (this.frame !== 4) drawRoundedRect(cx + shoulderX - armW, armR_Y, armW, 14, skin); // Brazo Piel
+        if (this.frame !== 4) drawRoundedRect(cx + shoulderX - armW, armR_Y, armW, 8, shirt); // Manga
+
+        // 4. Piernas (Pantalones o Falda)
+        let legW = isFemale ? 6 : 7;
+        let legSpace = isFemale ? 4 : 6;
+
+        let pColor = pants;
+        if (outfit === 'vestido') pColor = skin; // Si es vestido, piernas descubiertas o medias
+
+        // Pierna Derecha (Atrás)
+        let rxOffset = cx + legSpace / 2 + (this.frame === 4 ? 4 : 0);
+        drawRoundedRect(rxOffset, legR_Y, legW, legR_H, 3, pColor);
+        // Pierna Izquierda (Frente)
+        let lxOffset = cx - legSpace / 2 - legW - (this.frame === 4 ? 2 : 0);
+        drawRoundedRect(lxOffset, legL_Y, legW, legL_H, 3, pColor);
+
+        // Zapatos
+        let shoeColor = outfit === 'formal' ? '#000' : (outfit === 'vestido' ? '#fb7185' : '#fff');
+        drawRoundedRect(rxOffset - 1, legR_Y + legR_H - 4, legW + 2, 5, 2, shoeColor);
+        drawRoundedRect(lxOffset - 1, legL_Y + legL_H - 4, legW + 2, 5, 2, shoeColor);
+
+        // 5. Torso y Ropa
+        let torsoW = isFemale ? 16 : 20;
+        let torsoY = cy - 12;
+        let torsoH = 16;
+
+        if (outfit === 'vestido') {
+            // Falda/Vestido (triangular)
+            ctx.fillStyle = shirt; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(cx - torsoW / 2 + 2, torsoY);
+            ctx.lineTo(cx + torsoW / 2 - 2, torsoY);
+            ctx.lineTo(cx + torsoW / 2 + 4, torsoY + torsoH + 4);
+            ctx.lineTo(cx - torsoW / 2 - 4, torsoY + torsoH + 4);
+            ctx.closePath();
+            ctx.fill(); ctx.stroke();
+
+            // Cinturón
+            drawRect(cx - torsoW / 2, torsoY + 10, torsoW, 3, '#0f172a', '#0f172a', 0);
+        } else {
+            // Torso Normal
+            drawRoundedRect(cx - torsoW / 2, torsoY, torsoW, torsoH, 2, shirt);
+            if (outfit === 'formal') {
+                // Saco Abierto
+                drawRect(cx - torsoW / 2, torsoY, 4, torsoH, '#0f172a', '#0f172a', 0);
+                drawRect(cx + torsoW / 2 - 4, torsoY, 4, torsoH, '#0f172a', '#0f172a', 0);
+                // Corbata
+                drawRect(cx - 2, torsoY, 4, 10, '#dc2626', '#0f172a', 1);
+            }
+        }
+
+        // 6. Brazo Frontal (Izquierdo)
         if (this.frame === 4) {
-            outlineRect(ctx, cx - 10, cy + 6, 20, 8, this.props.pants);
+            // Sentado: Brazos hacia la mesa
+            drawRoundedRect(cx - torsoW / 2 - 2, cy - 8, armW, 10, shirt);
+            drawRoundedRect(cx - torsoW / 2 - 2, cy + 2, armW, 5, skin); // Mano tocando teclado
         } else {
-            if (this.frame === 1) { outlineRect(ctx, cx - 8, cy + 6, 8, 12, this.props.pants); outlineRect(ctx, cx + 2, cy + 6, 6, 8, this.props.pants); }
-            else if (this.frame === 3) { outlineRect(ctx, cx - 8, cy + 6, 6, 8, this.props.pants); outlineRect(ctx, cx + 2, cy + 6, 8, 12, this.props.pants); }
-            else { outlineRect(ctx, cx - 8, cy + 6, 7, 10, this.props.pants); outlineRect(ctx, cx + 1, cy + 6, 7, 10, this.props.pants); }
+            drawRoundedRect(cx - torsoW / 2 - 2, armL_Y, armW, 14, skin);
+            drawRoundedRect(cx - torsoW / 2 - 2, armL_Y, armW, 8, shirt);
         }
 
-        outlineArc(ctx, cx, cy, 14, this.props.shirt);
-        ctx.fillStyle = "rgba(0,0,0,0.2)"; ctx.fillRect(cx - 4, cy - 12, 8, 4);
+        // 7. CABEZA
+        let headY = cy - 22;
+        // Orejas
+        drawArc(cx - 13, headY + 2, 4, skin);
+        drawArc(cx + 13, headY + 2, 4, skin);
+        // Rostro Base
+        drawRoundedRect(cx - 13, headY - 12, 26, 22, 10, skin); // Forma ligeramente achatada
 
-        outlineArc(ctx, cx, cy - 18, 13, this.props.skin);
+        // 8. Ojos y Sonrisa
+        ctx.fillStyle = '#0f172a';
+        let eyeSeparation = isFemale ? 6 : 5;
+        let eyeSize = isFemale ? 3 : 2;
+        let eyeYOffset = isFemale ? headY : headY - 1;
 
-        if (!this.props.hat) {
-            outlineArc(ctx, cx, cy - 20, 13, this.props.hair, '#0f172a', 2, Math.PI, 0);
-            ctx.fillStyle = this.props.hair; ctx.fillRect(cx - 11, cy - 20, 22, 6); // Frente
-        } else {
-            outlineArc(ctx, cx, cy - 20, 13, this.props.shirt, '#0f172a', 2, Math.PI, 0);
-            outlineRect(ctx, cx - 15, cy - 20, 24, 6, this.props.shirt);
+        ctx.beginPath(); ctx.arc(cx - eyeSeparation, eyeYOffset, eyeSize, 0, Math.PI * 2); ctx.fill(); // Izq
+        ctx.beginPath(); ctx.arc(cx + eyeSeparation, eyeYOffset, eyeSize, 0, Math.PI * 2); ctx.fill(); // Der
+
+        // Brillo Ojos
+        ctx.fillStyle = '#fff';
+        if (isFemale) {
+            ctx.beginPath(); ctx.arc(cx - eyeSeparation + 1, eyeYOffset - 1, 1, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(cx + eyeSeparation + 1, eyeYOffset - 1, 1, 0, Math.PI * 2); ctx.fill();
         }
 
-        if (this.props.glasses) {
-            outlineRect(ctx, cx - 10, cy - 22, 8, 6, '#1e293b', '#000', 1);
-            outlineRect(ctx, cx + 2, cy - 22, 8, 6, '#1e293b', '#000', 1);
-            ctx.fillStyle = '#0f172a'; ctx.fillRect(cx - 2, cy - 20, 4, 2);
+        // Sonrisa (apenas visible)
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(cx, headY + 4, 3, 0.2, Math.PI - 0.2); ctx.stroke();
+
+        // Rubor
+        if (isFemale) {
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.3)';
+            ctx.beginPath(); ctx.arc(cx - 9, headY + 3, 3, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(cx + 9, headY + 3, 3, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // 9. CABELLO FRONTAL
+        if (hairStyle !== 'calvo') {
+            if (hairStyle === 'corto' || hairStyle === 'puntiagudo') {
+                drawRoundedRect(cx - 14, headY - 14, 28, 10, 5, hair); // Flequillo base
+                if (hairStyle === 'puntiagudo') {
+                    // Puntas arriba
+                    ctx.fillStyle = hair; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(cx - 10, headY - 14); ctx.lineTo(cx - 5, headY - 24); ctx.lineTo(cx, headY - 14);
+                    ctx.moveTo(cx, headY - 14); ctx.lineTo(cx + 6, headY - 26); ctx.lineTo(cx + 10, headY - 14);
+                    ctx.fill(); ctx.stroke();
+                } else {
+                    // Recorte corto al lado
+                    drawRect(cx - 14, headY - 8, 4, 8, hair, '#0f172a', 0);
+                    drawRect(cx + 10, headY - 8, 4, 8, hair, '#0f172a', 0);
+                }
+            } else if (hairStyle === 'largo' || hairStyle === 'coleta') {
+                // Flequillo dividido
+                drawRoundedRect(cx - 14, headY - 14, 14, 12, 4, hair);
+                drawRoundedRect(cx + 2, headY - 14, 12, 10, 4, hair);
+
+                // Mechones laterales
+                drawRoundedRect(cx - 15, headY - 4, 6, 12, 2, hair);
+                drawRoundedRect(cx + 10, headY - 4, 5, 12, 2, hair);
+            }
+        }
+
+        // 10. ACCESORIOS
+        if (acc === 'gafas') {
+            ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2;
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            drawRoundedRect(cx - 10, headY - 3, 8, 6, 2, ctx.fillStyle, '#0f172a', 2); // Lente Izq
+            drawRoundedRect(cx + 2, headY - 3, 8, 6, 2, ctx.fillStyle, '#0f172a', 2); // Lente Der
+            drawRect(cx - 2, headY - 1, 4, 2, '#0f172a', '#0f172a', 0); // Puente
+        } else if (acc === 'headset') {
+            // Banda
+            drawArc(cx, headY - 14, 14, 'transparent', '#0f172a', 3, Math.PI, 0);
+            // Auriculares
+            drawRoundedRect(cx - 16, headY - 5, 4, 10, 3, '#1e293b');
+            drawRoundedRect(cx + 12, headY - 5, 4, 10, 3, '#1e293b');
+            // Micro
+            drawRect(cx - 12, headY + 2, 8, 2, '#64748b', 'transparent', 0);
+            drawArc(cx - 4, headY + 3, 2, '#1e293b');
+        } else if (acc === 'gorra') {
+            drawRoundedRect(cx - 14, headY - 16, 28, 8, 4, shirt); // Base gorra (mismo color camisa)
+            drawRect(cx - 16, headY - 8, 20, 3, shirt, '#0f172a', 2); // Visera
         }
 
         this.drawLabel(ctx);
@@ -1025,8 +1192,11 @@ class UIController {
                     this.activateColor('#picker-hair', data.props.hair);
                     this.activateColor('#picker-shirt', data.props.shirt);
                     this.activateColor('#picker-pants', data.props.pants);
-                    document.getElementById('check-glasses').checked = data.props.glasses;
-                    document.getElementById('check-hat').checked = data.props.hat;
+
+                    if (data.props.body) document.getElementById('select-body').value = data.props.body;
+                    if (data.props.hairStyle) document.getElementById('select-hairstyle').value = data.props.hairStyle;
+                    if (data.props.outfit) document.getElementById('select-outfit').value = data.props.outfit;
+                    if (data.props.accessory) document.getElementById('select-accessory').value = data.props.accessory;
                 }
             } catch (e) { }
         }
@@ -1048,8 +1218,12 @@ class UIController {
         this.p.props.hair = document.querySelector('#picker-hair .active').dataset.color;
         this.p.props.shirt = document.querySelector('#picker-shirt .active').dataset.color;
         this.p.props.pants = document.querySelector('#picker-pants .active').dataset.color;
-        this.p.props.glasses = document.getElementById('check-glasses').checked;
-        this.p.props.hat = document.getElementById('check-hat').checked;
+
+        this.p.props.body = document.getElementById('select-body').value;
+        this.p.props.hairStyle = document.getElementById('select-hairstyle').value;
+        this.p.props.outfit = document.getElementById('select-outfit').value;
+        this.p.props.accessory = document.getElementById('select-accessory').value;
+
         this.renderAvatarPreview();
     }
 
@@ -1075,7 +1249,7 @@ class UIController {
             });
         });
 
-        let inputs = ['input-nickname', 'select-role', 'check-glasses', 'check-hat'];
+        let inputs = ['input-nickname', 'select-role', 'select-body', 'select-hairstyle', 'select-outfit', 'select-accessory'];
         inputs.forEach(id => {
             document.getElementById(id).addEventListener('change', () => this.updatePreviewData());
             document.getElementById(id).addEventListener('input', () => this.updatePreviewData());
