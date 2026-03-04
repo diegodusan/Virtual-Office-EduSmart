@@ -67,6 +67,19 @@ io.on('connection', (socket) => {
         io.to(data.to).emit('iceCandidate', { candidate: data.candidate, from: socket.id });
     });
 
+    // Sincronización de Presentaciones
+    socket.on('startPresentation', (data) => {
+        socket.broadcast.emit('startPresentation', data);
+    });
+
+    socket.on('changeSlide', (idx) => {
+        socket.broadcast.emit('changeSlide', idx);
+    });
+
+    socket.on('stopPresentation', () => {
+        socket.broadcast.emit('stopPresentation');
+    });
+
     socket.on('disconnect', () => {
         console.log('Usuario desconectado:', socket.id);
         delete players[socket.id];

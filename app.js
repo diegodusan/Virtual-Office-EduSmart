@@ -1181,15 +1181,20 @@ class UIController {
         const presInput = document.getElementById('presentation-file-input');
 
         if (btnSubmitPres && presInput) {
-            btnSubmitPres.addEventListener('click', () => {
+            btnSubmitPres.addEventListener('click', async () => {
                 const files = presInput.files;
                 if (!files || files.length === 0) return;
 
                 this.presFiles = [];
                 for (let i = 0; i < files.length; i++) {
                     const f = files[i];
-                    const blobUrl = URL.createObjectURL(f);
-                    this.presFiles.push({ url: blobUrl, type: f.type });
+                    // Convertir a base64 para enviarlo por red a los otros jugadores
+                    const base64 = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => resolve(e.target.result);
+                        reader.readAsDataURL(f);
+                    });
+                    this.presFiles.push({ url: base64, type: f.type });
                 }
 
                 document.getElementById('upload-pres-modal').classList.add('hidden');
@@ -1206,6 +1211,15 @@ class UIController {
                 this.presCurrentIdx = 0;
                 this.renderSlide();
 
+                // Emitir al servidor
+                if (window._network && window._network.socket) {
+                    window._network.socket.emit('startPresentation', {
+                        owner: this.p.nickname,
+                        files: this.presFiles,
+                        idx: 0
+                    });
+                }
+
                 presInput.value = ""; // clear
             });
         }
@@ -1215,12 +1229,29 @@ class UIController {
         const btnStopPres = document.getElementById('btn-pres-close');
 
         if (btnPrevPres) btnPrevPres.addEventListener('click', () => {
-            if (this.presCurrentIdx > 0) { this.presCurrentIdx--; this.renderSlide(); }
+            if (this.presCurrentIdx > 0) {
+                this.presCurrentIdx--;
+                this.renderSlide();
+                if (window._network && window._network.socket) {
+                    window._network.socket.emit('changeSlide', this.presCurrentIdx);
+                }
+            }
         });
         if (btnNextPres) btnNextPres.addEventListener('click', () => {
-            if (this.presCurrentIdx < this.presFiles.length - 1) { this.presCurrentIdx++; this.renderSlide(); }
+            if (this.presCurrentIdx < this.presFiles.length - 1) {
+                this.presCurrentIdx++;
+                this.renderSlide();
+                if (window._network && window._network.socket) {
+                    window._network.socket.emit('changeSlide', this.presCurrentIdx);
+                }
+            }
         });
-        if (btnStopPres) btnStopPres.addEventListener('click', () => window.dispatchEvent(new Event("pres-stop")));
+        if (btnStopPres) btnStopPres.addEventListener('click', () => {
+            window.dispatchEvent(new Event("pres-stop"));
+            if (window._network && window._network.socket) {
+                window._network.socket.emit('stopPresentation');
+            }
+        });
 
         document.getElementById('btn-send-chat').addEventListener('click', () => this.sendChat());
         document.getElementById('chat-input').addEventListener('keypress', e => { if (e.key === 'Enter') this.sendChat(); });
@@ -1294,6 +1325,37 @@ class NetworkController {
         this.socket.on('connect', () => {
             console.log("Conectado al servidor multijugador!");
 
+            // Initialize PeerJS para WebRTC
+            this.peer = new Peer(this.socket.id);
+            this.activeCalls = {};
+
+            this.peer.on('open', (id) => {
+                console.log('PeerJS conectado con ID:', id);
+            });
+
+            this.peer.on('call', (call) => {
+                if (window.localStream) {
+                    call.answer(window.localStream);
+                } else {
+                    call.answer();
+                }
+
+                call.on('stream', (remoteStream) => {
+                    this.addRemoteVideoStream(call.peer, remoteStream);
+                });
+
+                call.on('close', () => {
+                    this.removeRemoteVideoStream(call.peer);
+                });
+
+                call.on('error', (err) => {
+                    console.log("Call error:", err);
+                    this.removeRemoteVideoStream(call.peer);
+                });
+
+                this.activeCalls[call.peer] = call;
+            });
+
             // Avisar que entramos
             this.socket.emit('playerJoined', {
                 x: this.p.x,
@@ -1334,6 +1396,32 @@ class NetworkController {
             msg.innerHTML = `<b style="color:var(--accent)">${msgObj.nick}:</b> ${msgObj.text}`;
             document.getElementById('chat-messages').appendChild(msg);
             document.getElementById('chat-messages').scrollTop = 9999;
+        });
+
+        // Sincronización de Presentaciones
+        this.socket.on('startPresentation', (data) => {
+            window._isPresentationActive = true;
+            window._presentationOwner = data.owner;
+            this.ui.presFiles = data.files;
+            this.ui.presCurrentIdx = data.idx;
+
+            document.getElementById('presentation-presenter-name').textContent = "Presenta: " + data.owner;
+            document.getElementById('presentation-viewer').classList.remove('hidden');
+            document.getElementById('presentation-controls').classList.add('hidden'); // Ocultar controles al espectador
+            document.getElementById('presentation-viewer-hint').classList.remove('hidden');
+
+            this.ui.renderSlide();
+        });
+
+        this.socket.on('changeSlide', (idx) => {
+            if (window._isPresentationActive) {
+                this.ui.presCurrentIdx = idx;
+                this.ui.renderSlide();
+            }
+        });
+
+        this.socket.on('stopPresentation', () => {
+            window.dispatchEvent(new Event("pres-stop"));
         });
 
         // Interceptar SendChat de UI
@@ -1378,10 +1466,94 @@ class NetworkController {
         for (let id in this.remotePlayers) {
             this.remotePlayers[id].update(dt);
         }
+        this.updateWebRTCProximity();
     }
 
     getRenderList() {
         return Object.values(this.remotePlayers);
+    }
+
+    addRemoteVideoStream(peerId, stream) {
+        const container = document.getElementById("remote-videos-container");
+        let videoEl = document.getElementById(`remote-video-${peerId}`);
+        if (!videoEl) {
+            videoEl = document.createElement("video");
+            videoEl.id = `remote-video-${peerId}`;
+            videoEl.autoplay = true;
+            videoEl.playsInline = true;
+            videoEl.className = "remote-video";
+
+            let rp = this.remotePlayers[peerId];
+            let name = rp ? rp.nickname : "Usuario";
+
+            let card = document.createElement("div");
+            card.id = `remote-card-${peerId}`;
+            card.className = "remote-card connected";
+            card.innerHTML = `
+                <div class="flex-row space-between align-center" style="margin-bottom: 5px;">
+                    <span><span class="status-indicator"></span><b style="font-size:12px;">${name}</b></span>
+                </div>
+            `;
+            videoEl.style.width = "100%";
+            videoEl.style.borderRadius = "8px";
+            videoEl.style.backgroundColor = "#000";
+            card.appendChild(videoEl);
+            container.appendChild(card);
+        }
+        videoEl.srcObject = stream;
+    }
+
+    removeRemoteVideoStream(peerId) {
+        let card = document.getElementById(`remote-card-${peerId}`);
+        if (card) {
+            card.remove();
+        }
+        // Cerrar llamada si sigue activa
+        if (this.activeCalls[peerId]) {
+            this.activeCalls[peerId].close();
+            delete this.activeCalls[peerId];
+        }
+    }
+
+    updateWebRTCProximity() {
+        if (!this.peer || !this.peer.id) return;
+
+        const PROXIMITY_RADIUS = 150;
+        const HYSTERESIS = 50;
+
+        for (let id in this.remotePlayers) {
+            let rp = this.remotePlayers[id];
+            const dist = Math.sqrt(Math.pow(this.p.x - rp.x, 2) + Math.pow(this.p.y - rp.y, 2));
+
+            // Feedback visual en el canvas
+            rp.connectedDist = dist < (PROXIMITY_RADIUS + HYSTERESIS);
+
+            if (dist < PROXIMITY_RADIUS) {
+                if (!this.activeCalls[id] && window.localStream) {
+                    // Para evitar llamadas dobles (glare), solo el peer de menor ID inicia la llamada
+                    if (this.peer.id < id) {
+                        const call = this.peer.call(id, window.localStream);
+                        if (call) {
+                            call.on('stream', (remoteStream) => {
+                                this.addRemoteVideoStream(id, remoteStream);
+                            });
+                            call.on('close', () => {
+                                this.removeRemoteVideoStream(id);
+                            });
+                            call.on('error', (err) => {
+                                console.log("Call error:", err);
+                                this.removeRemoteVideoStream(id);
+                            });
+                            this.activeCalls[id] = call;
+                        }
+                    }
+                }
+            } else if (dist > PROXIMITY_RADIUS + HYSTERESIS) {
+                if (this.activeCalls[id]) {
+                    this.removeRemoteVideoStream(id);
+                }
+            }
+        }
     }
 }
 
@@ -1404,8 +1576,9 @@ window.addEventListener('init-engine', async () => {
     _sonora = new NPC("npc_sonora", 12 * TILE, 35 * TILE, "Sonora", "Recepcionista");
 
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         document.getElementById('local-video').srcObject = stream;
+        window.localStream = stream; // Guardar para PeerJS
     } catch (e) { console.warn("Cam fail"); document.getElementById('local-video-container').style.display = 'none'; }
 
     _isRunning = true;
