@@ -1213,10 +1213,13 @@ class UIController {
 
                 // Emitir al servidor
                 if (window._network && window._network.socket) {
+                    let roomName = window._map.getRoomAt(window._player.x, window._player.y)?.name || 'Global';
+                    window._presentationRoom = roomName;
                     window._network.socket.emit('startPresentation', {
                         owner: this.p.nickname,
                         files: this.presFiles,
-                        idx: 0
+                        idx: 0,
+                        roomName: roomName
                     });
                 }
 
@@ -1233,7 +1236,7 @@ class UIController {
                 this.presCurrentIdx--;
                 this.renderSlide();
                 if (window._network && window._network.socket) {
-                    window._network.socket.emit('changeSlide', this.presCurrentIdx);
+                    window._network.socket.emit('changeSlide', { idx: this.presCurrentIdx, roomName: window._presentationRoom });
                 }
             }
         });
@@ -1242,14 +1245,14 @@ class UIController {
                 this.presCurrentIdx++;
                 this.renderSlide();
                 if (window._network && window._network.socket) {
-                    window._network.socket.emit('changeSlide', this.presCurrentIdx);
+                    window._network.socket.emit('changeSlide', { idx: this.presCurrentIdx, roomName: window._presentationRoom });
                 }
             }
         });
         if (btnStopPres) btnStopPres.addEventListener('click', () => {
             window.dispatchEvent(new Event("pres-stop"));
             if (window._network && window._network.socket) {
-                window._network.socket.emit('stopPresentation');
+                window._network.socket.emit('stopPresentation', { roomName: window._presentationRoom });
             }
         });
 
@@ -1400,28 +1403,37 @@ class NetworkController {
 
         // Sincronización de Presentaciones
         this.socket.on('startPresentation', (data) => {
-            window._isPresentationActive = true;
-            window._presentationOwner = data.owner;
-            this.ui.presFiles = data.files;
-            this.ui.presCurrentIdx = data.idx;
+            // Verificar si el jugador actual está en la misma habitación que el presentador
+            let myRoom = this.map.getRoomAt(this.p.x, this.p.y);
 
-            document.getElementById('presentation-presenter-name').textContent = "Presenta: " + data.owner;
-            document.getElementById('presentation-viewer').classList.remove('hidden');
-            document.getElementById('presentation-controls').classList.add('hidden'); // Ocultar controles al espectador
-            document.getElementById('presentation-viewer-hint').classList.remove('hidden');
+            // Si el presentador está en la misma sala (ej. Sala Conferencias)
+            if (myRoom && myRoom.name === data.roomName) {
+                window._isPresentationActive = true;
+                window._presentationOwner = data.owner;
+                window._presentationRoom = data.roomName;
+                this.ui.presFiles = data.files;
+                this.ui.presCurrentIdx = data.idx;
 
-            this.ui.renderSlide();
-        });
+                document.getElementById('presentation-presenter-name').textContent = "Presenta: " + data.owner;
+                document.getElementById('presentation-viewer').classList.remove('hidden');
+                document.getElementById('presentation-controls').classList.add('hidden'); // Ocultar controles al espectador
+                document.getElementById('presentation-viewer-hint').classList.remove('hidden');
 
-        this.socket.on('changeSlide', (idx) => {
-            if (window._isPresentationActive) {
-                this.ui.presCurrentIdx = idx;
                 this.ui.renderSlide();
             }
         });
 
-        this.socket.on('stopPresentation', () => {
-            window.dispatchEvent(new Event("pres-stop"));
+        this.socket.on('changeSlide', (data) => {
+            if (window._isPresentationActive && window._presentationRoom === data.roomName) {
+                this.ui.presCurrentIdx = data.idx;
+                this.ui.renderSlide();
+            }
+        });
+
+        this.socket.on('stopPresentation', (data) => {
+            if (window._isPresentationRoom === data.roomName || window._isPresentationActive) {
+                window.dispatchEvent(new Event("pres-stop"));
+            }
         });
 
         // Interceptar SendChat de UI
@@ -1429,7 +1441,7 @@ class NetworkController {
         this.ui.sendChat = () => {
             let ipt = document.getElementById('chat-input');
             if (!ipt.value.trim()) return;
-            this.socket.emit('chatMessage', { nick: this.p.nickname, text: ipt.value });
+            this.socket.emit('chatMessage', { nick: this.p.nickname, text: ipt.value, roomName: this.map.getRoomAt(this.p.x, this.p.y)?.name || 'Global' });
             ipt.value = '';
         }
     }
@@ -1518,8 +1530,8 @@ class NetworkController {
     updateWebRTCProximity() {
         if (!this.peer || !this.peer.id) return;
 
-        const PROXIMITY_RADIUS = 150;
-        const HYSTERESIS = 50;
+        const PROXIMITY_RADIUS = 180;
+        const HYSTERESIS = 60;
 
         for (let id in this.remotePlayers) {
             let rp = this.remotePlayers[id];
