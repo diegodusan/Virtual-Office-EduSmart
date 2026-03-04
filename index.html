@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduSmart - Virtual Office</title>
+    <!-- Retro Pixel Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <!-- APP CONTAINER (SPA Layout) -->
+    <div id="app-container">
+
+        <!-- SIDEBAR -->
+        <nav id="sidebar" class="glass-panel-strong">
+            <div class="sidebar-header">
+                <h2>EduSmart</h2>
+                <span class="badge">Virtual HQ</span>
+            </div>
+
+            <ul class="nav-links">
+                <li class="nav-item active" data-target="view-map">
+                    <span class="icon">📍</span> Mapa (Oficina)
+                </li>
+                <li class="nav-item" data-target="view-calendar">
+                    <span class="icon">📅</span> Calendario
+                </li>
+                <li class="nav-item" data-target="view-tasks">
+                    <span class="icon">✅</span> Tareas
+                </li>
+                <li class="nav-item" data-target="view-files">
+                    <span class="icon">📁</span> Archivos
+                </li>
+                <li class="nav-item" data-target="view-settings">
+                    <span class="icon">⚙️</span> Configuración
+                </li>
+            </ul>
+
+            <div class="sidebar-footer">
+                <div class="user-mini-profile">
+                    <div id="mini-avatar" class="avatar-circle"></div>
+                    <div class="user-info">
+                        <b id="nav-username">Invitado</b>
+                        <span id="nav-role" class="role-badge">Sin Asignar</span>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- MAIN CONTENT AREA -->
+        <main id="main-content">
+
+            <!-- VIEW: MAPA (Juego) -->
+            <section id="view-map" class="view-section active">
+
+                <!-- Game Canvas -->
+                <canvas id="game-canvas"></canvas>
+
+                <!-- UI Overlay: Video Canvas Local -->
+                <div id="local-video-container" class="overlay top-left flex-col glass-panel-strong">
+                    <video id="local-video" autoplay muted playsinline></video>
+                    <span class="video-label">Cámara Local</span>
+                </div>
+
+                <!-- UI Overlay: Estado -->
+                <div id="status-panel" class="overlay top-right flex-col gap-sm glass-panel">
+                    <h3 id="player-name-display">Cargando...</h3>
+                    <div class="status-row"><span>🏢 Zona:</span> <b id="current-room">Lobby</b></div>
+                    <div class="status-row"><span>🎮 FPS:</span> <b id="fps-counter">0</b></div>
+                    <div class="status-row"><span>🌐 Modo:</span> <b id="game-mode"
+                            style="color:var(--success)">DEMO</b></div>
+                    <button id="btn-fast-travel" class="btn btn-primary"
+                        style="margin-top: 8px; font-size: 13px; padding: 6px;">🌍 Viaje Rápido</button>
+                </div>
+
+                <!-- UI Overlay: Presentation Viewer (TOP CENTER) -->
+                <div id="presentation-viewer" class="overlay hidden flex-col glass-panel-strong">
+                    <div class="presentation-header flex-row space-between align-center">
+                        <h3>🎬 Presentación en Curso</h3>
+                        <span id="presentation-presenter-name" class="badge" style="margin:0;">Presentador: Nadie</span>
+                    </div>
+
+                    <div id="presentation-content-area" class="flex-1">
+                        <!-- Here goes the image or iframe/object for PDF -->
+                    </div>
+
+                    <!-- Controles: Solo visibles para el presentador -->
+                    <div id="presentation-controls" class="presentation-footer flex-row justify-center gap-md hidden">
+                        <button id="btn-pres-prev" class="btn lg-btn">⬅ Anterior</button>
+                        <span id="pres-page-counter" style="align-self:center; font-weight:bold; color:var(--accent);">1
+                            / 1</span>
+                        <button id="btn-pres-next" class="btn lg-btn">Siguiente ➡</button>
+                        <button id="btn-pres-close" class="btn btn-primary lg-btn"
+                            style="background:var(--danger);">Finalizar</button>
+                    </div>
+                    <div id="presentation-viewer-hint"
+                        style="text-align:center; font-size:12px; color:var(--text-secondary); margin-top:10px;">
+                        Modo espectador (solo el presentador tiene los controles)
+                    </div>
+                </div>
+
+                <!-- UI Overlay: Remotes (Simulados) -->
+                <div id="remote-videos-container" class="overlay center-left flex-col gap-md"></div>
+
+                <!-- Mini Chat -->
+                <div id="chat-panel" class="overlay bottom-left full-height glass-panel flex-col">
+                    <div class="chat-header">Chat de Oficina</div>
+                    <div id="chat-messages" class="flex-1 overflow-y">
+                        <p><i>¡Bienvenido a EduSmart HQ!</i></p>
+                    </div>
+                    <div class="chat-input-row flex-row">
+                        <input type="text" id="chat-input" placeholder="Escribe algo..." autocomplete="off">
+                        <button id="btn-send-chat" class="btn btn-primary">Enviar</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: CALENDARIO (Placeholder) -->
+            <section id="view-calendar" class="view-section hidden">
+                <div class="placeholder-content glass-panel-strong">
+                    <h2>📅 Calendario de Tareas</h2>
+                    <p>Módulo en construcción. Aquí verás tus reuniones y entregas.</p>
+                </div>
+            </section>
+
+            <!-- VIEW: TAREAS (Placeholder) -->
+            <section id="view-tasks" class="view-section hidden">
+                <div class="placeholder-content glass-panel-strong">
+                    <h2>✅ Lista de Funciones</h2>
+                    <p>Módulo en construcción. Asignación de tickets y progreso.</p>
+                </div>
+            </section>
+
+            <!-- VIEW: ARCHIVOS (Placeholder) -->
+            <section id="view-files" class="view-section hidden">
+                <div class="placeholder-content glass-panel-strong">
+                    <h2>📁 Gestor de Archivos</h2>
+                    <p>Módulo en construcción. Integración con Google Drive planeada aquí.</p>
+                </div>
+            </section>
+
+            <!-- VIEW: CONFIGURACIÓN (Placeholder) -->
+            <section id="view-settings" class="view-section hidden">
+                <div class="placeholder-content glass-panel-strong">
+                    <h2>⚙️ Configuración del Sistema</h2>
+                    <p>Módulo en construcción. Ajustes de audio, video y cuenta.</p>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Main Menu / Profile & Spawn Creator Modal -->
+    <div id="profile-modal" class="modal-backdrop">
+        <div class="modal glass-panel-strong anime-pop flex-col gap-md" style="max-width: 600px;">
+            <div class="flex-row space-between">
+                <h2>Ingreso a EduSmart HQ</h2>
+            </div>
+
+            <div class="profile-editor-layout flex-row gap-lg" style="margin-top: 10px;">
+
+                <!-- Col 1: Datos y Avatar -->
+                <div class="flex-1 flex-col gap-md">
+                    <div class="form-group">
+                        <label>Nombre Completo:</label>
+                        <input type="text" id="input-nickname" placeholder="Ej. Diego..." value="Diego">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Cargo / Rol:</label>
+                        <select id="select-role" class="custom-select">
+                            <option value="empleado">Staff / Empleado General</option>
+                            <option value="gerente">Gerente EduSmart</option>
+                            <option value="coordinador_tesifive">Coordinador TesiFive</option>
+                            <option value="coordinador_dufy">Coordinador Dufy</option>
+                            <option value="coordinador_reyes">Coordinador Reyes</option>
+                        </select>
+                    </div>
+
+                    <!-- Live Avatar Preview (Hecho con canvas) -->
+                    <div class="avatar-preview-box">
+                        <canvas id="avatar-preview" width="100" height="100"></canvas>
+                        <p>Vista Previa</p>
+                    </div>
+                </div>
+
+                <!-- Col 2: Editor visual -->
+                <div class="flex-1 flex-col gap-md editor-tools">
+                    <div class="form-group row">
+                        <label>Piel:</label>
+                        <div class="color-picker" id="picker-skin">
+                            <button class="color-btn active" data-color="#ffdbac" style="background:#ffdbac"></button>
+                            <button class="color-btn" data-color="#f1c27d" style="background:#f1c27d"></button>
+                            <button class="color-btn" data-color="#e0ac69" style="background:#e0ac69"></button>
+                            <button class="color-btn" data-color="#8d5524" style="background:#8d5524"></button>
+                        </div>
+                    </div>
+
+                    <div class="form-group row">
+                        <label>Pelo:</label>
+                        <div class="color-picker" id="picker-hair">
+                            <button class="color-btn active" data-color="#27272a" style="background:#27272a"></button>
+                            <button class="color-btn" data-color="#78350f" style="background:#78350f"></button>
+                            <button class="color-btn" data-color="#fbbf24" style="background:#fbbf24"></button>
+                            <button class="color-btn" data-color="#dc2626" style="background:#dc2626"></button>
+                        </div>
+                    </div>
+
+                    <div class="form-group row">
+                        <label>Camisa:</label>
+                        <div class="color-picker" id="picker-shirt">
+                            <button class="color-btn active" data-color="#3b82f6" style="background:#3b82f6"></button>
+                            <button class="color-btn" data-color="#ef4444" style="background:#ef4444"></button>
+                            <button class="color-btn" data-color="#10b981" style="background:#10b981"></button>
+                            <button class="color-btn" data-color="#f59e0b" style="background:#f59e0b"></button>
+                            <button class="color-btn" data-color="#f8fafc" style="background:#f8fafc"></button>
+                        </div>
+                    </div>
+
+                    <div class="form-group row">
+                        <label>Pantalón:</label>
+                        <div class="color-picker" id="picker-pants">
+                            <button class="color-btn active" data-color="#1e293b" style="background:#1e293b"></button>
+                            <button class="color-btn" data-color="#1e3a8a" style="background:#1e3a8a"></button>
+                            <button class="color-btn" data-color="#451a03" style="background:#451a03"></button>
+                            <button class="color-btn" data-color="#94a3b8" style="background:#94a3b8"></button>
+                        </div>
+                    </div>
+
+                    <div class="form-group row" style="margin-top: 10px;">
+                        <label class="flex-row gap-sm align-center">
+                            <input type="checkbox" id="check-glasses"> Usar Gafas
+                        </label>
+                    </div>
+                    <div class="form-group row">
+                        <label class="flex-row gap-sm align-center">
+                            <input type="checkbox" id="check-hat"> Usar Gorra
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <hr style="border-color: var(--border-color); opacity: 0.5; margin: 10px 0;">
+
+            <button id="btn-enter" class="btn btn-primary lg-btn">Entrar al Campus</button>
+            <p class="modal-hint">Se te asignará un escritorio según tu rol o zona seleccionada.</p>
+        </div>
+    </div>
+
+    <!-- Archivero (Fichero) Modal -->
+    <div id="fichero-modal" class="modal-backdrop hidden">
+        <div class="modal glass-panel-strong anime-pop flex-col gap-md">
+            <div class="modal-header flex-row space-between">
+                <h2 id="fichero-title" style="margin:0;">Archivero</h2>
+                <button id="btn-close-fichero" class="btn btn-icon">X</button>
+            </div>
+            <div id="fichero-list" class="folder-list flex-col gap-sm">
+                <!-- Archivos inyectados por JS -->
+            </div>
+            <div class="fichero-actions flex-row gap-sm">
+                <button id="btn-create-file" class="btn">Nuevo Doc</button>
+                <button id="btn-upload-file" class="btn btn-primary">Subir Archivo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Selección de Sistema Modal -->
+    <div id="system-choice-modal" class="modal-backdrop hidden">
+        <div class="modal glass-panel-strong anime-pop flex-col gap-md">
+            <div class="modal-header flex-row space-between">
+                <h2 style="margin:0;">Seleccionar Plataforma</h2>
+                <button id="btn-close-system-choice" class="btn btn-icon">X</button>
+            </div>
+            <div class="flex-col gap-md" style="margin-top: 10px;">
+                <button id="btn-sys-admin" class="btn btn-primary lg-btn" style="height: 60px; font-size: 18px;">Sistema
+                    Administrativo</button>
+                <button id="btn-sys-tutor" class="btn lg-btn"
+                    style="height: 60px; font-size: 18px; background: rgba(16, 185, 129, 0.2); border-color: #10b981; color: #10b981;">Sistema
+                    Tutores</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Viaje Rápido Modal -->
+    <div id="fast-travel-modal" class="modal-backdrop hidden" style="z-index: 150;">
+        <div class="modal glass-panel-strong anime-pop flex-col gap-md" style="max-width: 380px;">
+            <div class="modal-header flex-row space-between">
+                <h2 style="margin:0;">🌍 Viaje Rápido</h2>
+                <button id="btn-close-travel" class="btn btn-icon">X</button>
+            </div>
+            <p style="font-size:13px; color:var(--text-secondary); margin-bottom: 8px;">Teletranspórtate a otra zona:
+            </p>
+            <div id="fast-travel-list" class="flex-col gap-sm">
+                <button class="btn travel-btn" data-x="my-desk" data-y="my-desk"
+                    style="text-align:left; background: rgba(250, 204, 21, 0.2); border-color: #facc15; color: #facc15;">🖥️
+                    Mi Escritorio</button>
+                <button class="btn travel-btn" data-x="11" data-y="31" style="text-align:left;">📍 Recepción /
+                    Lobby</button>
+                <button class="btn travel-btn" data-x="38" data-y="26" style="text-align:left;">💻 Empleados
+                    EduSmart</button>
+                <button class="btn travel-btn" data-x="28" data-y="10" style="text-align:left;">⭐ Gerencia
+                    EduSmart</button>
+                <button class="btn travel-btn" data-x="43" data-y="10" style="text-align:left;">🎓 Oficinas
+                    Coordinadores</button>
+                <button class="btn travel-btn" data-x="64" data-y="34" style="text-align:left;">📁 Archivo
+                    Central</button>
+                <button class="btn travel-btn" data-x="64" data-y="23" style="text-align:left;">🎤 Sala
+                    Conferencias</button>
+                <button class="btn travel-btn" data-x="10" data-y="52"
+                    style="text-align:left; background: rgba(16, 185, 129, 0.2); border-color: #10b981; color: #10b981;">🌳
+                    Jardín Exterior</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- WebView Modal -->
+    <div id="webview-modal" class="modal-backdrop hidden" style="z-index: 200;">
+        <div class="glass-panel-strong anime-pop flex-col"
+            style="width: 95%; height: 95%; max-width: 1400px; padding: 10px;">
+            <div class="flex-row space-between align-center" style="margin-bottom: 10px; padding: 0 10px;">
+                <h2 id="webview-title" style="margin:0; font-size: 18px;">Cargando Plataforma...</h2>
+                <button id="btn-close-webview" class="btn btn-icon"
+                    style="background: rgba(239, 68, 68, 0.2); color: #ef4444;">Cerrar Web</button>
+            </div>
+            <div class="flex-1" style="background: #fff; border-radius: 12px; overflow: hidden;">
+                <iframe id="platform-frame" src="" style="width: 100%; height: 100%; border: none;"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- Subir Presentación Modal -->
+    <div id="upload-pres-modal" class="modal-backdrop hidden" style="z-index: 200;">
+        <div class="modal glass-panel-strong anime-pop flex-col gap-md" style="max-width: 400px; text-align: center;">
+            <div class="modal-header flex-row space-between">
+                <h2 style="margin:0;">Proyectar en Pantalla</h2>
+                <button id="btn-close-upload-pres" class="btn btn-icon">X</button>
+            </div>
+            <p style="font-size:14px; color:var(--text-secondary);">Selecciona un archivo PDF o imágenes(slides) para
+                proyectar en la gran pantalla de la Sala de Conferencias.</p>
+            <input type="file" id="presentation-file-input" accept=".pdf, image/*" multiple
+                style="margin: 20px 0; color:#fff;" />
+            <button id="btn-submit-pres" class="btn btn-primary lg-btn">Iniciar Presentación</button>
+        </div>
+    </div>
+
+    <!-- Scripts unificados -->
+    <script src="app.js"></script>
+</body>
+
+</html>

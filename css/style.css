@@ -1,0 +1,281 @@
+/* ==================== 
+   Variables & Theme
+   ==================== */
+:root {
+    --bg-color: #1a1a24;
+    --panel-bg: rgba(30, 30, 40, 0.85);
+    --border-color: rgba(255, 255, 255, 0.1);
+    --text-primary: #f8f8f2;
+    --text-secondary: #8b8b9a;
+    --accent: #6366f1;
+    --accent-hover: #4f46e5;
+    --danger: #ef4444;
+    --success: #10b981;
+    --font-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body, html {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    font-family: var(--font-main);
+    touch-action: none; /* previene zoom y scroll en mobile canvas */
+}
+
+/* ==================== 
+   Layout Utilities
+   ==================== */
+.flex-col { display: flex; flex-direction: column; }
+.flex-row { display: flex; flex-direction: row; }
+.gap-sm { gap: 8px; }
+.gap-md { gap: 16px; }
+.gap-lg { gap: 24px; }
+.space-between { justify-content: space-between; }
+.justify-center { justify-content: center; }
+.align-center { align-items: center; }
+.flex-1 { flex: 1; min-height: 0; }
+.overflow-y { overflow-y: auto; }
+.hidden { display: none !important; }
+.mt-sm { margin-top: 8px; }
+
+/* ==================== 
+   Typography & Glass
+   ==================== */
+h1, h2, h3 { font-weight: 600; }
+
+.glass-panel {
+    background: var(--panel-bg);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* ==================== 
+   Canvas
+   ==================== */
+#game-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    image-rendering: pixelated; /* estilo retro nítido */
+}
+
+/* ==================== 
+   Overlays
+   ==================== */
+.overlay {
+    position: absolute;
+    z-index: 10;
+    pointer-events: auto; /* Dejar que clicks pasen en overlay panels */
+}
+
+/* Permitir clicks a traves del body general a excepcion de paneles */
+body { pointer-events: none; }
+#game-canvas { pointer-events: auto; }
+
+.top-left { top: 16px; left: 16px; }
+.top-right { top: 16px; right: 16px; }
+.bottom-left { bottom: 16px; left: 16px; width: 300px; max-height: 250px; }
+.bottom-right { bottom: 16px; right: 16px; }
+.center-left { top: 200px; left: 16px; }
+
+/* ==================== 
+   Video Containers
+   ==================== */
+#local-video-container {
+    background: var(--panel-bg);
+    padding: 8px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+}
+
+#local-video {
+    width: 160px;
+    height: 120px;
+    background-color: #000;
+    border-radius: 8px;
+    object-fit: cover;
+    transform: scaleX(-1); /* espejo local */
+}
+
+.video-label {
+    font-size: 12px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.remote-card {
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 8px;
+    width: 180px;
+    transition: opacity 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.remote-card.disconnected {
+    opacity: 0.3;
+}
+
+.remote-card video {
+    width: 100%;
+    height: 100px;
+    background: #000;
+    border-radius: 8px;
+    object-fit: cover;
+}
+
+.remote-card .status-indicator {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--danger);
+    display: inline-block;
+    margin-right: 6px;
+}
+
+.remote-card.connected .status-indicator {
+    background: var(--success);
+}
+
+/* ==================== 
+   Modals
+   ==================== */
+.modal-backdrop {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    pointer-events: auto;
+}
+
+.modal {
+    width: 90%;
+    max-width: 400px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.form-group.row {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+
+input[type="text"], select {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+input[type="text"]:focus, select:focus {
+    border-color: var(--accent);
+}
+
+.btn {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.btn:hover {
+    background: rgba(255,255,255,0.2);
+}
+
+.btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+.btn-primary:hover {
+    background: var(--accent-hover);
+}
+
+.btn-icon {
+    padding: 4px 8px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+}
+.btn-icon:hover { color: var(--danger); }
+
+/* ==================== 
+   Chat
+   ==================== */
+#chat-messages {
+    font-size: 13px;
+    margin-bottom: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+#chat-messages p { word-wrap: break-word; }
+.chat-input-row input { flex: 1; min-width: 0; }
+
+/* ==================== 
+   Folders UI
+   ==================== */
+.folder-item {
+    background: rgba(255,255,255,0.05);
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.folder-item:hover {
+    border-color: var(--accent);
+    background: rgba(255,255,255,0.1);
+}
+
+/* ==================== 
+   Mobile Controls
+   ==================== */
+.btn-ctrl {
+    width: 48px; height: 48px;
+    display: flex; justify-content: center; align-items: center;
+    border-radius: 50%;
+    font-weight: bold;
+    font-size: 18px;
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(4px);
+}
+.btn-ctrl:active { background: rgba(255,255,255,0.3); }
+
+@media (max-width: 768px) {
+    #mobile-controls { display: flex !important; }
+    .bottom-left { width: 220px; max-height: 150px; bottom: 80px; }
+}
