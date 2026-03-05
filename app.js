@@ -758,73 +758,140 @@ class BasePlayer {
         }
 
         // 3. Brazo Trasero (Derecho)
-        let armW = isMusculoso ? 9 : (isFemale ? 5 : (isRobusto ? 8 : 6));
+        let armW = isMusculoso ? 8 : (isFemale ? 5 : (isRobusto ? 8 : 6));
         let torsoW = isMusculoso ? 24 : (isRobusto ? 22 : (isCurvilinea ? 18 : (isFemale ? 14 : 18)));
-        let shoulderX = torsoW / 2 + (isMusculoso ? 3 : 2);
+        let shoulderX = torsoW / 2 - 1;
 
         let armLength = isAlto ? 18 : 14;
         let sleeveLength = isAlto ? 10 : 8;
 
-        if (this.frame !== 4) drawRoundedRect(cx + shoulderX - armW, armR_Y, armW, armLength, skin); // Brazo Piel
-        if (this.frame !== 4) drawRoundedRect(cx + shoulderX - armW, armR_Y, armW, sleeveLength, shirt); // Manga
+        if (outfit === 'deportivo_corto' || outfit === 'traje_bano' || outfit === 'verano_playa' || outfit === 'vestido_noche' || outfit === 'vestido_verano') {
+            sleeveLength = isAlto ? 4 : 3;
+        } else if (outfit === 'invierno_abrigo' || outfit === 'invierno_sueter' || outfit === 'laboratorio' || outfit === 'pijama') {
+            sleeveLength = armLength; // Manga larga
+        }
+        if (outfit === 'traje_bano' && !isFemale) { sleeveLength = 0; }
+
+        let sleeveColorR = shirt;
+        if (outfit === 'laboratorio') sleeveColorR = '#f8fafc';
+        else if (outfit === 'punk_cuero') sleeveColorR = '#1e293b';
+        else if (outfit === 'invierno_abrigo') sleeveColorR = '#78350f';
+
+        if (this.frame !== 4) drawRoundedRect(cx + shoulderX, armR_Y, armW, armLength, skin);
+        if (this.frame !== 4 && sleeveLength > 0) drawRoundedRect(cx + shoulderX, armR_Y, armW, sleeveLength, sleeveColorR);
 
         // 4. Piernas (Pantalones o Falda)
         let legW = isMusculoso ? 8 : (isFemale ? 6 : (isRobusto ? 8 : 7));
-        let legSpace = isCurvilinea ? 6 : (isFemale ? 4 : (isRobusto || isMusculoso ? 8 : 6));
+        let legSpace = torsoW / 2 - (isFemale ? 1 : 2);
+
+        let rxOffset = cx + legSpace / 2 + (this.frame === 4 ? 2 : 0) - (isFemale ? 1 : 0);
+        let lxOffset = cx - legSpace / 2 - legW - (this.frame === 4 ? 1 : 0) + (isFemale ? 1 : 0);
 
         let pColor = pants;
-        if (outfit === 'vestido') pColor = skin;
+        if (outfit === 'vestido' || outfit === 'vestido_noche' || outfit === 'vestido_verano' || outfit === 'traje_bano' || outfit === 'deportivo_corto') pColor = skin; // Skin por defecto
+        if (outfit === 'overol' || outfit === 'pijama' || outfit === 'deportivo_chandal') pColor = shirt; // Conjunto 1 sola pieza
 
-        // Pierna Derecha (Atrás)
-        let rxOffset = cx + legSpace / 2 + (this.frame === 4 ? 4 : 0) - (isRobusto || isMusculoso ? 2 : 0);
-        drawRoundedRect(rxOffset, legR_Y, legW, legR_H, 3, pColor);
-        // Pierna Izquierda (Frente)
-        let lxOffset = cx - legSpace / 2 - legW - (this.frame === 4 ? 2 : 0) + (isRobusto || isMusculoso ? 2 : 0);
-        drawRoundedRect(lxOffset, legL_Y, legW, legL_H, 3, pColor);
+        // Dibujar Piernas
+        if (outfit === 'deportivo_corto' || outfit === 'traje_bano' || outfit === 'vestido_verano') {
+            drawRoundedRect(rxOffset, legR_Y, legW, legR_H, 3, skin);
+            drawRoundedRect(lxOffset, legL_Y, legW, legL_H, 3, skin);
+            let shortL = isAlto ? 8 : 6;
+            if (outfit === 'traje_bano' || outfit === 'vestido_verano') shortL = isAlto ? 5 : 4;
+            drawRoundedRect(rxOffset, legR_Y, legW, shortL, 2, pants);
+            drawRoundedRect(lxOffset, legL_Y, legW, shortL, 2, pants);
+        } else {
+            drawRoundedRect(rxOffset, legR_Y, legW, legR_H, 3, pColor);
+            drawRoundedRect(lxOffset, legL_Y, legW, legL_H, 3, pColor);
+        }
 
         // Zapatos
-        let shoeColor = outfit === 'formal' ? '#000' : (outfit === 'vestido' ? '#fb7185' : '#fff');
-        drawRoundedRect(rxOffset - 1, legR_Y + legR_H - 4, legW + 2, 5, 2, shoeColor);
-        drawRoundedRect(lxOffset - 1, legL_Y + legL_H - 4, legW + 2, 5, 2, shoeColor);
+        let shoeColor = '#fff';
+        if (outfit === 'formal' || outfit === 'invierno_abrigo' || outfit === 'punk_cuero') shoeColor = '#000';
+        else if (outfit === 'vestido' || outfit === 'vestido_noche' || outfit === 'vestido_verano') shoeColor = '#fb7185';
+        else if (outfit === 'laboratorio' || outfit === 'deportivo_chandal') shoeColor = '#cbd5e1';
+        else if (outfit === 'traje_bano') shoeColor = 'transparent'; // Descalzo o chanclas
+        else if (outfit === 'pijama') shoeColor = shirt;
 
-        // 5. Torso y Ropa
+        if (shoeColor !== 'transparent') {
+            drawRoundedRect(rxOffset - 1, legR_Y + legR_H - 4, legW + 2, 5, 2, shoeColor);
+            drawRoundedRect(lxOffset - 1, legL_Y + legL_H - 4, legW + 2, 5, 2, shoeColor);
+        }
+
+        // 5. Torso y Ropa Principal
         let torsoY = cy - (isAlto ? 16 : 12);
         let torsoH = isAlto ? 20 : 16;
+        let isCurvilineaFix = isCurvilinea ? 6 : 2;
 
-        if (outfit === 'vestido') {
-            // Falda/Vestido (triangular)
+        if (outfit === 'vestido' || outfit === 'vestido_noche' || outfit === 'vestido_verano') {
+            let faldaLargo = (outfit === 'vestido_noche') ? (isAlto ? 28 : 24) : (outfit === 'vestido_verano' ? (isAlto ? 16 : 12) : torsoH + 4);
             ctx.fillStyle = shirt; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.moveTo(cx - torsoW / 2 + 2, torsoY);
-            ctx.lineTo(cx + torsoW / 2 - 2, torsoY);
-            ctx.lineTo(cx + torsoW / 2 + 4, torsoY + torsoH + 4);
-            ctx.lineTo(cx - torsoW / 2 - 4, torsoY + torsoH + 4);
+            ctx.moveTo(cx - torsoW / 2 + 1, torsoY);
+            ctx.lineTo(cx + torsoW / 2 - 1, torsoY);
+            ctx.lineTo(cx + torsoW / 2 + 6, torsoY + faldaLargo);
+            ctx.lineTo(cx - torsoW / 2 - 6, torsoY + faldaLargo);
             ctx.closePath();
             ctx.fill(); ctx.stroke();
 
-            // Cinturón
-            drawRect(cx - torsoW / 2, torsoY + 10, torsoW, 3, '#0f172a', '#0f172a', 0);
+            if (outfit === 'vestido_noche') drawRect(cx - torsoW / 2 - 1, torsoY + 10, torsoW + 2, 3, '#facc15', '#cb5a04', 1);
+            else if (outfit === 'vestido') drawRect(cx - torsoW / 2, torsoY + 10, torsoW, 3, '#0f172a', '#0f172a', 0);
         } else {
-            // Torso Normal
-            drawRoundedRect(cx - torsoW / 2, torsoY, torsoW, torsoH, isCurvilinea ? 6 : 2, shirt);
-            if (outfit === 'formal') {
-                // Saco Abierto
-                drawRect(cx - torsoW / 2, torsoY, 4, torsoH, '#0f172a', '#0f172a', 0);
-                drawRect(cx + torsoW / 2 - 4, torsoY, 4, torsoH, '#0f172a', '#0f172a', 0);
-                // Corbata (dinamica con pantalones)
-                let tieLength = isAlto ? 14 : 10;
-                drawRect(cx - 2, torsoY, 4, tieLength, pants, '#0f172a', 1);
+            drawRoundedRect(cx - torsoW / 2, torsoY, torsoW, torsoH, isCurvilineaFix, shirt);
+
+            if (outfit === 'formal' || outfit === 'laboratorio' || outfit === 'invierno_abrigo' || outfit === 'punk_cuero' || outfit === 'verano_playa') {
+                let sacoColor = (outfit === 'laboratorio') ? '#f8fafc' : (outfit === 'punk_cuero' ? '#1e293b' : (outfit === 'invierno_abrigo' ? '#78350f' : '#0f172a'));
+                let solapaLargo = (outfit === 'laboratorio' || outfit === 'invierno_abrigo') ? torsoH + (isAlto ? 8 : 6) : torsoH;
+
+                if (outfit === 'formal') {
+                    let tieLength = isAlto ? 14 : 10;
+                    drawRect(cx - 2, torsoY, 4, tieLength, pants, '#0f172a', 1);
+                } else if (outfit === 'verano_playa') { // Pecho descubierto
+                    drawRoundedRect(cx - 3, torsoY, 6, 8, 2, skin, 'transparent', 0);
+                    sacoColor = shirt;
+                    drawRoundedRect(cx - torsoW / 2, torsoY, torsoW, torsoH, isCurvilineaFix, '#e2e8f0');
+                }
+
+                drawRect(cx - torsoW / 2, torsoY, 4, solapaLargo, sacoColor, '#0f172a', 1);
+                drawRect(cx + torsoW / 2 - 4, torsoY, 4, solapaLargo, sacoColor, '#0f172a', 1);
+
+                if (outfit === 'laboratorio' || outfit === 'invierno_abrigo') {
+                    drawRect(cx - torsoW / 2, torsoY + torsoH, torsoW, (isAlto ? 8 : 6), sacoColor, '#0f172a', 1);
+                }
+            } else if (outfit === 'overol') {
+                drawRect(cx - torsoW / 2 + 1, torsoY, 3, 6, pants, '#0f172a', 1);
+                drawRect(cx + torsoW / 2 - 4, torsoY, 3, 6, pants, '#0f172a', 1);
+                drawRect(cx - torsoW / 2, torsoY + 6, torsoW, torsoH - 6, pants, '#0f172a', 1);
+                drawRect(cx - 2, torsoY + 8, 4, 4, '#eab308', 'transparent', 0);
+            } else if (outfit === 'urbano_hoodie') {
+                drawRoundedRect(cx - 6, torsoY + torsoH - 6, 12, 6, 2, '#0f172a', 'transparent', 0);
+                drawRoundedRect(cx - 5, torsoY + torsoH - 5, 10, 4, shirt, 'transparent', 0);
+            } else if (outfit === 'deportivo_chandal') {
+                drawRect(cx - 2, torsoY, 4, torsoH, '#f8fafc', 'transparent', 0);
+                drawRect(cx - torsoW / 2, torsoY + 4, torsoW, 2, '#ef4444', 'transparent', 0);
+            } else if (outfit === 'invierno_sueter') {
+                ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                for (let yy = 0; yy < torsoH; yy += 4) ctx.fillRect(cx - torsoW / 2 + 2, torsoY + yy, torsoW - 4, 2);
+            } else if (outfit === 'traje_bano') {
+                if (isFemale) {
+                    drawRoundedRect(cx - torsoW / 2, torsoY, torsoW, torsoH, isCurvilineaFix, skin);
+                    drawRoundedRect(cx - torsoW / 2 + 1, torsoY + 3, torsoW / 2 - 1, 4, shirt, '#0f172a', 1);
+                    drawRoundedRect(cx + 1, torsoY + 3, torsoW / 2 - 1, 4, shirt, '#0f172a', 1);
+                } else {
+                    drawRoundedRect(cx - torsoW / 2, torsoY, torsoW, torsoH, isCurvilineaFix, skin);
+                }
             }
         }
 
         // 6. Brazo Frontal (Izquierdo)
+        let armLeftX = cx - torsoW / 2 - Math.max(armW - 2, 2);
+
         if (this.frame === 4) {
-            // Sentado: Brazos hacia la mesa
-            drawRoundedRect(cx - torsoW / 2 - 2, cy - 8, armW, 10, shirt);
-            drawRoundedRect(cx - torsoW / 2 - 2, cy + 2, armW, 5, skin); // Mano tocando teclado
+            // Sentado
+            drawRoundedRect(armLeftX, cy - 8, armW, 10, sleeveColorR);
+            drawRoundedRect(armLeftX, cy + 2, armW, 5, skin); // Mano
         } else {
-            drawRoundedRect(cx - torsoW / 2 - 2, armL_Y, armW, armLength, skin);
-            drawRoundedRect(cx - torsoW / 2 - 2, armL_Y, armW, sleeveLength, shirt);
+            drawRoundedRect(armLeftX, armL_Y, armW, armLength, skin);
+            if (sleeveLength > 0) drawRoundedRect(armLeftX, armL_Y, armW, sleeveLength, sleeveColorR);
         }
 
         // 7. CABEZA
@@ -2033,3 +2100,119 @@ function mainLoop(timestamp) {
     }
 }
 
+/* =====================================================================
+   9. GOOGLE DRIVE & SHEETS INTEGRATION (OAUTH 2.0)
+====================================================================== */
+const GOOGLE_CLIENT_ID = '787877374390-3j2h20eokv4k3boj2u8ss60a4u2e7nsu.apps.googleusercontent.com';
+const GOOGLE_API_KEY = 'AIzaSyAGosJ7L6pCnp4uGs27EFjA77woIHz7uV8';
+const GOOGLE_DISCOVERY_DOCS = [
+    'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest',
+    'https://sheets.googleapis.com/$discovery/rest?version=v4'
+];
+const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets';
+
+let tokenClient;
+let gapiInited = false;
+let gisInited = false;
+
+window.gapiLoaded = function () {
+    gapi.load('client', initializeGapiClient);
+}
+
+async function initializeGapiClient() {
+    await gapi.client.init({
+        apiKey: GOOGLE_API_KEY,
+        discoveryDocs: GOOGLE_DISCOVERY_DOCS,
+    });
+    gapiInited = true;
+    maybeEnableGoogleAuth();
+}
+
+window.gisLoaded = function () {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: GOOGLE_SCOPES,
+        callback: '', // defined later
+    });
+    gisInited = true;
+    maybeEnableGoogleAuth();
+}
+
+function maybeEnableGoogleAuth() {
+    if (gapiInited && gisInited) {
+        let btn = document.getElementById('btn-google-auth');
+        if (btn) btn.disabled = false;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    let authBtn = document.getElementById('btn-google-auth');
+    if (authBtn) {
+        authBtn.disabled = true;
+        authBtn.onclick = handleGoogleAuthClick;
+    }
+    let createBtn = document.getElementById('btn-create-sheet');
+    if (createBtn) createBtn.onclick = createNewSpreadsheet;
+});
+
+function handleGoogleAuthClick() {
+    tokenClient.callback = async (resp) => {
+        if (resp.error !== undefined) {
+            console.error(resp.error);
+            return;
+        }
+        document.getElementById('btn-google-auth').style.display = 'none';
+        document.getElementById('drive-actions').style.display = 'flex';
+        await listDriveFiles();
+    };
+    if (gapi.client.getToken() === null) {
+        tokenClient.requestAccessToken({ prompt: 'consent' });
+    } else {
+        tokenClient.requestAccessToken({ prompt: '' });
+    }
+}
+
+async function listDriveFiles() {
+    let listUI = document.getElementById('drive-files-list');
+    listUI.innerHTML = '<p style="text-align:center;">Cargando archivos desde Google Drive...</p>';
+    try {
+        let response = await gapi.client.drive.files.list({
+            'pageSize': 20,
+            'fields': 'files(id, name, mimeType, webViewLink)',
+            'q': "trashed=false and (mimeType='application/vnd.google-apps.spreadsheet' or mimeType='application/pdf' or mimeType='application/vnd.google-apps.document')"
+        });
+        let files = response.result.files;
+        if (!files || files.length == 0) {
+            listUI.innerHTML = '<p style="text-align:center;">No se encontraron documentos ni hojas de cálculo.</p>';
+            return;
+        }
+        let html = '';
+        files.forEach((file) => {
+            let icon = '📄';
+            if (file.mimeType.includes('spreadsheet')) icon = '📊';
+            if (file.mimeType.includes('document')) icon = '📝';
+            html += `<div class="file-item flex-row space-between align-center" style="background:rgba(255,255,255,0.1); padding:8px 12px; border-radius:6px; margin-bottom: 5px;">
+                        <span>${icon} ${file.name}</span>
+                        <a href="${file.webViewLink}" target="_blank" class="btn btn-primary" style="padding: 4px 8px; font-size:12px;">Abrir</a>
+                     </div>`;
+        });
+        listUI.innerHTML = html;
+    } catch (err) {
+        listUI.innerHTML = `<p style="color:var(--danger); text-align:center;">Error al cargar archivos: ${err.message}</p>`;
+    }
+}
+
+async function createNewSpreadsheet() {
+    try {
+        let response = await gapi.client.sheets.spreadsheets.create({
+            properties: {
+                title: 'Nuevo Doc EduSmart ' + new Date().toLocaleDateString()
+            }
+        });
+        alert('Spreadsheet creado con éxito.');
+        window.open(response.result.spreadsheetUrl, '_blank');
+        await listDriveFiles(); // Refresh list
+    } catch (err) {
+        alert('Error creando spreadsheet: ' + err.message);
+    }
+}

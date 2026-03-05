@@ -143,11 +143,24 @@
                 </div>
             </section>
 
-            <!-- VIEW: ARCHIVOS (Placeholder) -->
-            <section id="view-files" class="view-section hidden">
-                <div class="placeholder-content glass-panel-strong">
-                    <h2>📁 Gestor de Archivos</h2>
-                    <p>Módulo en construcción. Integración con Google Drive planeada aquí.</p>
+            <!-- VIEW: ARCHIVOS -->
+            <section id="view-files" class="view-section hidden flex-col">
+                <div class="glass-panel-strong file-manager-container flex-col gap-md"
+                    style="padding: 20px; height: 100%; display: flex; flex: 1;">
+                    <div class="flex-row space-between align-center">
+                        <h2>📁 Gestor de Archivos (Google Drive)</h2>
+                        <button id="btn-google-auth" class="btn btn-primary"
+                            style="background:#4285F4; border-color:#4285F4;">Conectar Google</button>
+                    </div>
+                    <div id="drive-files-list" class="flex-col gap-sm overflow-y flex-1"
+                        style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; min-height: 200px;">
+                        <p style="color:var(--text-secondary); text-align:center; padding-top: 20px;">Conecta tu cuenta
+                            de Google para ver y organizar tus documentos del campus.</p>
+                    </div>
+                    <div class="flex-row gap-sm" id="drive-actions" style="display:none; padding-top:10px;">
+                        <button id="btn-create-sheet" class="btn lg-btn"
+                            style="background:#10b981; border-color:#10b981;">📄 Nuevo Hoja de Cálculo</button>
+                    </div>
                 </div>
             </section>
 
@@ -343,7 +356,20 @@
                         <select id="select-outfit" class="custom-select" style="flex:1;">
                             <option value="casual">Casual (Camisa)</option>
                             <option value="formal">Traje Formal (Corbata)</option>
-                            <option value="vestido">Vestido / Falda</option>
+                            <option value="deportivo_chandal">Chándal Deportivo</option>
+                            <option value="deportivo_corto">Ropa Deportiva Corta</option>
+                            <option value="verano_playa">Camisa Abierta (Playa)</option>
+                            <option value="invierno_abrigo">Abrigo Largo de Invierno</option>
+                            <option value="invierno_sueter">Suéter de Lana</option>
+                            <option value="laboratorio">Bata de Laboratorio</option>
+                            <option value="overol">Overol / Mameluco</option>
+                            <option value="vestido">Vestido / Falda (Formal)</option>
+                            <option value="vestido_noche">Vestido de Noche (Largo)</option>
+                            <option value="vestido_verano">Vestido de Verano (Corto)</option>
+                            <option value="urbano_hoodie">Hoodie / Sudadera</option>
+                            <option value="punk_cuero">Chaqueta de Cuero</option>
+                            <option value="pijama">Pijama Enteriza</option>
+                            <option value="traje_bano">Traje de Baño</option>
                         </select>
                     </div>
                     <div class="form-group row">
@@ -516,6 +542,10 @@
     <!-- WebRTC and Sockets -->
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+    <!-- Google APIs -->
+    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 
     <!-- Scripts unificados -->
     <script src="app.js"></script>
