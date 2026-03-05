@@ -1598,6 +1598,30 @@ class UIController {
             if (document.getElementById('view-map').classList.contains('active')) window.focus();
         });
 
+        // Extension: Settings UI handlers
+        const fpsInput = document.getElementById('setting-fps-limit');
+        if (fpsInput) {
+            fpsInput.addEventListener('change', (e) => {
+                window._targetFPS = parseInt(e.target.value);
+            });
+        }
+
+        const perfInput = document.getElementById('setting-low-performance');
+        if (perfInput) {
+            perfInput.addEventListener('change', (e) => {
+                if (window._renderer) window._renderer.shadowsEnabled = !e.target.checked;
+            });
+        }
+
+        const btnReopenAvatar = document.getElementById('btn-reopen-avatar');
+        if (btnReopenAvatar) {
+            btnReopenAvatar.addEventListener('click', () => {
+                document.getElementById('profile-modal').classList.remove('hidden');
+                document.getElementById('btn-enter').textContent = "Guardar y Volver";
+                document.getElementById('view-settings').classList.add('hidden'); // Close settings
+            });
+        }
+
         document.getElementById('btn-close-system-choice').addEventListener('click', () => {
             document.getElementById('system-choice-modal').classList.add('hidden');
             window.focus();
@@ -1618,6 +1642,13 @@ class UIController {
             window.focus();
         });
 
+        document.getElementById('btn-pc-home').addEventListener('click', () => {
+            document.getElementById('pc-app-window').classList.add('hidden');
+            document.getElementById('btn-pc-home').classList.add('hidden');
+            let contentArchivos = document.getElementById('pc-app-content-archivos');
+            if (contentArchivos) contentArchivos.classList.add('hidden');
+        });
+
         document.querySelectorAll('.pc-icon').forEach(icon => {
             icon.addEventListener('click', (e) => {
                 let app = e.currentTarget.dataset.app;
@@ -1627,6 +1658,7 @@ class UIController {
 
                 if (app === 'archivos') {
                     document.getElementById('pc-app-window').classList.remove('hidden');
+                    document.getElementById('btn-pc-home').classList.remove('hidden');
                     // Hide other potential pc-apps
                     document.getElementById('pc-app-content-archivos').classList.remove('hidden');
                     // We might add tasks/calendar here later
@@ -1658,6 +1690,14 @@ class UIController {
 
                 } else if (app === 'tutor') {
                     openWebView("https://tutor.dufyasesorias.com/dashboard", "Sistema Tutores - Dufy Asesorías");
+                    document.getElementById('pc-os-modal').classList.add('hidden');
+
+                } else if (app === 'mattermost') {
+                    openWebView("https://slack.dufyasesorias.com/dufy-asesorias/channels/general", "Mattermost - General");
+                    document.getElementById('pc-os-modal').classList.add('hidden');
+
+                } else if (app === 'chatwoot') {
+                    openWebView("https://gestion-ptdodgo-chatwoot.46fbym.easypanel.host/app/accounts/1/dashboard", "Chatwoot");
                     document.getElementById('pc-os-modal').classList.add('hidden');
                 }
             });
@@ -1941,6 +1981,12 @@ class NetworkController {
             });
 
             this.peer.on('call', (call) => {
+                let isManual = call.metadata && call.metadata.type === 'phone_call';
+                if (isManual) {
+                    this.manualPhoneCalls = this.manualPhoneCalls || {};
+                    this.manualPhoneCalls[call.peer] = true;
+                }
+
                 if (window.localStream) {
                     call.answer(window.localStream);
                 } else {
@@ -1951,13 +1997,15 @@ class NetworkController {
                     this.addRemoteVideoStream(call.peer, remoteStream);
                 });
 
-                call.on('close', () => {
-                    this.removeRemoteVideoStream(call.peer);
-                });
-
                 call.on('error', (err) => {
                     console.log("Call error:", err);
                     this.removeRemoteVideoStream(call.peer);
+                    if (this.manualPhoneCalls) delete this.manualPhoneCalls[call.peer];
+                });
+
+                call.on('close', () => {
+                    this.removeRemoteVideoStream(call.peer);
+                    if (this.manualPhoneCalls) delete this.manualPhoneCalls[call.peer];
                 });
 
                 this.activeCalls[call.peer] = call;
@@ -2208,17 +2256,22 @@ class NetworkController {
                     console.log("Llamando a " + nick);
 
                     // Actually attempt to call
-                    const call = this.peer.call(remotePeer, window.localStream);
+                    const call = this.peer.call(remotePeer, window.localStream, { metadata: { type: 'phone_call' } });
+                    this.manualPhoneCalls = this.manualPhoneCalls || {};
+                    this.manualPhoneCalls[remotePeer] = true;
+
                     if (call) {
                         call.on('stream', (remoteStream) => {
                             this.addRemoteVideoStream(remotePeer, remoteStream);
                         });
                         call.on('close', () => {
                             this.removeRemoteVideoStream(remotePeer);
+                            if (this.manualPhoneCalls) delete this.manualPhoneCalls[remotePeer];
                         });
                         call.on('error', (err) => {
                             console.log("Phone Call error:", err);
                             this.removeRemoteVideoStream(remotePeer);
+                            if (this.manualPhoneCalls) delete this.manualPhoneCalls[remotePeer];
                         });
                         this.activeCalls[remotePeer] = call;
                         // Return to home
@@ -2412,6 +2465,7 @@ class NetworkController {
             this.activeCalls[peerId].close();
             delete this.activeCalls[peerId];
         }
+        if (this.manualPhoneCalls) delete this.manualPhoneCalls[peerId];
     }
 
     updateWebRTCProximity() {
@@ -2429,7 +2483,9 @@ class NetworkController {
 
             let effectiveDist = Math.sqrt(Math.pow(this.p.x - rp.x, 2) + Math.pow(this.p.y - rp.y, 2));
 
-            if (amIInGlobalRoom) {
+            if (this.manualPhoneCalls && this.manualPhoneCalls[id]) {
+                effectiveDist = 0; // Force connection if in a manual phone call
+            } else if (amIInGlobalRoom) {
                 let rpRoom = this.map.getRoomAt(rp.x, rp.y);
                 if (rpRoom && rpRoom.name === myRoom.name) {
                     effectiveDist = 0; // Force connection if in the same global room
@@ -2716,6 +2772,36 @@ window.onload = () => {
     _ui = new UIController(_player);
 
     _renderer.cx = 60 * TILE; _renderer.cy = 70 * TILE;
+
+    // Media Controls
+    let btnMic = document.getElementById('btn-toggle-mic');
+    if (btnMic) {
+        btnMic.addEventListener('click', (e) => {
+            if (window.localStream) {
+                let track = window.localStream.getAudioTracks()[0];
+                if (track) {
+                    track.enabled = !track.enabled;
+                    e.currentTarget.style.background = track.enabled ? 'rgba(0,0,0,0.6)' : 'rgba(239, 68, 68, 0.8)';
+                    e.currentTarget.textContent = track.enabled ? '🎤' : '🔇';
+                }
+            }
+        });
+    }
+
+    let btnCam = document.getElementById('btn-toggle-cam');
+    if (btnCam) {
+        btnCam.addEventListener('click', (e) => {
+            if (window.localStream) {
+                let track = window.localStream.getVideoTracks()[0];
+                if (track) {
+                    track.enabled = !track.enabled;
+                    e.currentTarget.style.background = track.enabled ? 'rgba(0,0,0,0.6)' : 'rgba(239, 68, 68, 0.8)';
+                    let videoEl = document.getElementById('local-video');
+                    if (videoEl) videoEl.style.opacity = track.enabled ? '1' : '0.2';
+                }
+            }
+        });
+    }
     _renderer.renderScene(_map, [_player]);
 };
 
@@ -2783,8 +2869,20 @@ async function pollFaceDetection() {
 }
 pollFaceDetection();
 
+window._targetFPS = 60;
+let _lastFrameTime = 0;
+
 function mainLoop(timestamp) {
     if (!_isRunning) return;
+
+    // FPS Limiter
+    let timeSinceLastFrame = timestamp - _lastFrameTime;
+    let frameDuration = 1000 / window._targetFPS;
+    if (timeSinceLastFrame < frameDuration) {
+        requestAnimationFrame(mainLoop);
+        return;
+    }
+    _lastFrameTime = timestamp;
 
     let dt = (timestamp - _lastTime) / 1000;
     _lastTime = timestamp;
@@ -2876,6 +2974,42 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnUpload = document.getElementById('btn-upload-drive');
     if (btnUpload) btnUpload.onclick = uploadDriveFile;
 
+    // Archivos (HUD)
+    const btnRefFilesHUD = document.getElementById('btn-hud-refresh-files');
+    if (btnRefFilesHUD) btnRefFilesHUD.onclick = loadDriveFiles;
+
+    // Upload button
+    const btnUploadHUD = document.getElementById('btn-hud-upload-file');
+    const inputUploadHUD = document.getElementById('input-hud-upload-drive');
+    if (btnUploadHUD && inputUploadHUD) {
+        btnUploadHUD.onclick = () => inputUploadHUD.click();
+        inputUploadHUD.addEventListener('change', () => {
+            if (inputUploadHUD.files && inputUploadHUD.files.length > 0) {
+                uploadDriveFileSpecific(inputUploadHUD, btnRefFilesHUD);
+            }
+        });
+    }
+
+    // New folder HUD
+    const btnNewFolderHUD = document.getElementById('btn-hud-new-folder');
+    if (btnNewFolderHUD) {
+        btnNewFolderHUD.onclick = async () => {
+            let fn = prompt("Nombre de la nueva carpeta:");
+            if (!fn) return;
+            try {
+                if (btnRefFilesHUD) btnRefFilesHUD.innerHTML = "Creando...";
+                let res = await fetch(GAS_BACKEND_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'createFolder', folderName: fn })
+                });
+                let data = await res.json();
+                if (btnRefFilesHUD) btnRefFilesHUD.innerHTML = "↻ Cargar";
+                if (data.success) loadDriveFiles();
+                else alert("Error: " + data.error);
+            } catch (e) { }
+        }
+    }
+
     // Tareas
     const btnRefTasks = document.getElementById('btn-refresh-tasks');
     if (btnRefTasks) btnRefTasks.onclick = loadTasks;
@@ -2922,9 +3056,13 @@ let _currentFolderId = 'Raíz'; // Carpeta actuálmente seleccionada en la vista
 async function loadDriveFiles() {
     let listUIFolders = document.getElementById('drive-folders-list');
     let listUIFiles = document.getElementById('drive-files-list');
+    let hFolders = document.getElementById('hud-drive-folders-list');
+    let hFiles = document.getElementById('hud-drive-files-list');
 
-    listUIFolders.innerHTML = '<p style="text-align:center;">Cargando...</p>';
-    listUIFiles.innerHTML = '<p style="text-align:center;">Cargando archivos desde Drive...</p>';
+    if (listUIFolders) listUIFolders.innerHTML = '<p style="text-align:center;">Cargando...</p>';
+    if (listUIFiles) listUIFiles.innerHTML = '<p style="text-align:center;">Cargando archivos desde Drive...</p>';
+    if (hFolders) hFolders.innerHTML = '<p style="text-align:center;">Cargando...</p>';
+    if (hFiles) hFiles.innerHTML = '<p style="text-align:center;">Cargando archivos desde Drive...</p>';
 
     if (GAS_BACKEND_URL === 'pega_aqui_la_url_de_tu_google_apps_script') {
         listUIFiles.innerHTML = '<p style="color:var(--danger); text-align:center;">Falta configurar GAS_BACKEND_URL en app.js</p>';
@@ -2954,12 +3092,13 @@ async function loadDriveFiles() {
 }
 
 function renderDriveFolders() {
-    let listUIFolders = document.getElementById('drive-folders-list');
+    let listUIFoldersPC = document.getElementById('drive-folders-list');
+    let listUIFoldersHUD = document.getElementById('hud-drive-folders-list');
     let html = '';
 
     // Raíz siempre disponible
     let rStyle = (_currentFolderId === 'Raíz') ? 'background: rgba(250, 204, 21, 0.2); border-left: 3px solid #facc15;' : 'cursor:pointer;';
-    html += `<div class="file-item flex-row space-between align-center" onclick="changeDriveFolder('Raíz', 'Raíz')" style="${rStyle} padding:8px 12px; border-radius:4px; margin-bottom: 5px;">
+    html += `<div class="file-item flex-row space-between align-center" onclick="changeDriveFolder('Raíz', 'Raíz')" style="${rStyle} padding:8px 12px; border-radius:4px; margin-bottom: 5px; color:#f8fafc;">
                 <span>📁 [Raíz]</span>
              </div>`;
 
@@ -2968,23 +3107,28 @@ function renderDriveFolders() {
     folders.forEach(f => {
         let fStyle = (_currentFolderId === f.name) ? 'background: rgba(250, 204, 21, 0.2); border-left: 3px solid #facc15;' : 'cursor:pointer;';
         // Context menú sobre carpetas por si las quieren eliminar después
-        html += `<div class="file-item flex-row space-between align-center" onclick="changeDriveFolder('${f.name}', '${f.name}')" oncontextmenu="handleDriveContextMenu(event, '${f.id}', '${f.name}', '${f.url}', true)" style="${fStyle} padding:8px 12px; border-radius:4px; margin-bottom: 5px;">
-                    <span style="padding-left:15px; font-size:14px; color:#fef08a;">📁 [+] ${f.name}</span>
+        html += `<div class="file-item flex-row space-between align-center" onclick="changeDriveFolder('${f.name}', '${f.name}')" oncontextmenu="handleDriveContextMenu(event, '${f.id}', '${f.name}', '${f.url}', true)" style="${fStyle} padding:8px 12px; border-radius:4px; margin-bottom: 5px; color:#f8fafc;">
+                    <span style="padding-left:15px; font-size:14px; color:#fef08a; font-weight:bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">📁 [+] ${f.name}</span>
                  </div>`;
     });
 
-    listUIFolders.innerHTML = html;
+    if (listUIFoldersPC) listUIFoldersPC.innerHTML = html;
+    if (listUIFoldersHUD) listUIFoldersHUD.innerHTML = html;
 }
 
 function changeDriveFolder(folderId, folderVisualName) {
     _currentFolderId = folderId;
-    document.getElementById('drive-files-header').textContent = `Contenido de "${folderVisualName}"`;
+    let hPC = document.getElementById('drive-files-header');
+    if (hPC) hPC.textContent = `Contenido de "${folderVisualName}"`;
+    let hHUD = document.getElementById('hud-drive-files-header');
+    if (hHUD) hHUD.textContent = `Contenido de "${folderVisualName}"`;
     renderDriveFolders(); // Re-render para reubicar diseño "Active"
     renderDriveFiles();
 }
 
 function renderDriveFiles() {
-    let listUIFiles = document.getElementById('drive-files-list');
+    let listUIFilesPC = document.getElementById('drive-files-list');
+    let listUIFilesHUD = document.getElementById('hud-drive-files-list');
     let html = '';
 
     // Solo archivos (no carpetas puras) correspondientes a _currentFolderId
@@ -2998,7 +3142,7 @@ function renderDriveFiles() {
             if (file.mimeType.includes('image')) icon = '🖼️';
 
             // Double click trigger y Context Menu trigger
-            html += `<div class="file-item flex-row space-between align-center" ondblclick="openDrivePreviewUrl('${file.url}', '${file.name}')" oncontextmenu="handleDriveContextMenu(event, '${file.id}', '${file.name}', '${file.url}', false)" style="background:rgba(255,255,255,0.1); padding:8px 12px; border-radius:6px; margin-bottom: 5px; cursor:pointer;" title="Doble clic para Abrir. Clic derecho para opciones.">
+            html += `<div class="file-item flex-row space-between align-center" ondblclick="openDrivePreviewUrl('${file.url}', '${file.name}')" oncontextmenu="handleDriveContextMenu(event, '${file.id}', '${file.name}', '${file.url}', false)" style="background:rgba(255,255,255,0.1); padding:8px 12px; border-radius:6px; margin-bottom: 5px; cursor:pointer; color:#f8fafc; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);" title="Doble clic para Abrir. Clic derecho para opciones.">
                         <span>${icon} ${file.name}</span>
                      </div>`;
         });
@@ -3015,7 +3159,8 @@ function renderDriveFiles() {
         html = maestroBtn + html;
     }
 
-    listUIFiles.innerHTML = html;
+    if (listUIFilesPC) listUIFilesPC.innerHTML = html;
+    if (listUIFilesHUD) listUIFilesHUD.innerHTML = html;
 }
 
 function openDrivePreviewUrl(url, name) {
@@ -3031,7 +3176,11 @@ function openDrivePreviewUrl(url, name) {
 let contextMenuTarget = null;
 
 // Escuchamos click derecho globlal sobre el contenedor de archivos para subir
-document.getElementById('drive-files-list').addEventListener('contextmenu', (e) => {
+document.getElementById('drive-files-list').addEventListener('contextmenu', handleEmptyAreaContextMenu);
+let hudFilesList = document.getElementById('hud-drive-files-list');
+if (hudFilesList) hudFilesList.addEventListener('contextmenu', handleEmptyAreaContextMenu);
+
+function handleEmptyAreaContextMenu(e) {
     // Si no clikea en un File-Item sino en el espacio vacío:
     if (!e.target.closest('.file-item')) {
         e.preventDefault();
@@ -3047,7 +3196,7 @@ document.getElementById('drive-files-list').addEventListener('contextmenu', (e) 
         document.getElementById('ctx-rename').style.display = 'none';
         document.getElementById('ctx-delete').style.display = 'none';
     }
-});
+}
 
 function handleDriveContextMenu(e, id, name, url, isFolderNode) {
     e.preventDefault();
@@ -3146,12 +3295,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function uploadDriveFile() {
     let input = document.getElementById('input-upload-drive');
-    if (!input.files || input.files.length === 0) return;
-
     let btnRefFiles = document.getElementById('btn-refresh-files');
-    if (btnRefFiles) {
-        btnRefFiles.textContent = 'Subiendo...';
-        btnRefFiles.disabled = true;
+    await uploadDriveFileSpecific(input, btnRefFiles);
+}
+
+async function uploadDriveFileSpecific(inputEl, btnRefEl) {
+    if (!inputEl.files || inputEl.files.length === 0) return;
+
+    if (btnRefEl) {
+        btnRefEl.textContent = 'Subiendo...';
+        btnRefEl.disabled = true;
     }
 
     try {
@@ -3175,13 +3328,15 @@ async function uploadDriveFile() {
         let data = await res.json();
         if (!data.success) throw new Error(data.error);
         alert('Archivo subido con éxito.');
-        input.value = '';
+        inputEl.value = '';
         loadDriveFiles();
     } catch (err) {
         alert('Error al subir: ' + err.message);
     } finally {
-        btnUpload.textContent = 'Subir Archivo';
-        btnUpload.disabled = false;
+        if (btnRefEl) {
+            btnRefEl.textContent = '↻ Cargar';
+            btnRefEl.disabled = false;
+        }
     }
 }
 
@@ -3427,7 +3582,59 @@ let checkSocketInterval = setInterval(() => {
             } else if (data.type === 'stop_present_doc' && !localIsPresenter) {
                 document.getElementById('presentation-viewer').style.display = 'none';
                 document.getElementById('presentation-content-area').innerHTML = '';
+            } else if (data.type === 'present_screen_start' && data.presenterId !== window.socket.id) {
+                localIsPresenter = false;
+                document.getElementById('presentation-viewer').style.display = 'block';
+                document.getElementById('presentation-content-area').innerHTML = `<div style="display:flex; height:100%; align-items:center; justify-content:center; color:white; background:#000;"><p>Recibiendo transmisión de pantalla WebRTC...</p></div>`;
+                document.getElementById('presentation-controls').classList.add('hidden');
+                document.getElementById('presentation-viewer-hint').classList.remove('hidden');
             }
         });
     }
 }, 1000);
+
+// PROJECTION HUD BUTTON LOGIC
+document.addEventListener('DOMContentLoaded', () => {
+    let btnWhiteboard = document.getElementById('btn-project-whiteboard');
+    if (btnWhiteboard) btnWhiteboard.onclick = () => {
+        // Usa una url de pizarra colaborativa gratis genérica
+        startPresentation("https://wbo.ophir.dev/boards/edusmart-office");
+    };
+
+    let btnDocument = document.getElementById('btn-project-document');
+    if (btnDocument) btnDocument.onclick = () => {
+        // Abre el explorador de archivos para elegir qué proyectar
+        document.getElementById('fichero-modal').classList.remove('hidden');
+    };
+
+    let btnScreen = document.getElementById('btn-project-screen');
+    if (btnScreen) btnScreen.onclick = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+
+            localIsPresenter = true;
+            document.getElementById('presentation-viewer').style.display = 'block';
+
+            document.getElementById('presentation-content-area').innerHTML = `<video id="presentation-video" autoplay playsinline style="width:100%; height:100%; border:none; background:#000;"></video>`;
+            document.getElementById('presentation-video').srcObject = stream;
+
+            document.getElementById('presentation-controls').classList.remove('hidden');
+            document.getElementById('presentation-viewer-hint').classList.add('hidden');
+
+            // Listen to native stop sharing (from the browser overlay)
+            stream.getVideoTracks()[0].onended = () => {
+                stopPresentation();
+            };
+
+            if (typeof window.socket !== 'undefined' && window.socket) {
+                window.socket.emit('zone_broadcast', { type: 'present_screen_start', presenterId: window.socket.id });
+            }
+
+            // Allow WebRTC manager to pick this up later
+            window.presentationStream = stream;
+
+        } catch (e) {
+            console.error("Error al compartir pantalla", e);
+        }
+    };
+});

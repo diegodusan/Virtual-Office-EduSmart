@@ -47,6 +47,9 @@
                 <li class="nav-item" data-target="view-files">
                     <span class="icon">📁</span> Archivos
                 </li>
+                <li class="nav-item" data-target="view-projection">
+                    <span class="icon">📽️</span> Proyectar
+                </li>
                 <li class="nav-item" data-target="view-settings">
                     <span class="icon">⚙️</span> Configuración
                 </li>
@@ -307,7 +310,18 @@
                 <!-- UI Overlay: Video Canvas Local -->
                 <div id="local-video-container" class="overlay top-left flex-col glass-panel-strong">
                     <video id="local-video" autoplay muted playsinline></video>
-                    <span class="video-label">Cámara Local</span>
+                    <div class="flex-row space-between align-center"
+                        style="width:100%; position:absolute; bottom:5px; left:0; padding: 0 10px; z-index:10;">
+                        <span class="video-label" style="position:relative; background:none;">Cámara Local</span>
+                        <div class="flex-row gap-sm">
+                            <button id="btn-toggle-mic" class="btn btn-icon"
+                                style="width:30px; height:30px; border-radius:50%; font-size:14px; background:rgba(0,0,0,0.6); padding:0;"
+                                title="Silenciar Micrófono">🎤</button>
+                            <button id="btn-toggle-cam" class="btn btn-icon"
+                                style="width:30px; height:30px; border-radius:50%; font-size:14px; background:rgba(0,0,0,0.6); padding:0;"
+                                title="Apagar Cámara">📹</button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- UI Overlay: Estado -->
@@ -474,34 +488,118 @@
                 </div>
             </section>
 
-            <!-- VIEW: ARCHIVOS (Moved to PC OS Modal) -->
+            <!-- VIEW: ARCHIVOS (Advanced HUD Manager) -->
             <section id="view-files" class="view-section hidden flex-col">
                 <div class="glass-panel-strong flex-col gap-md"
-                    style="padding: 20px; height: 100%; display: flex; flex: 1; justify-content:center; align-items:center;">
-                    <p style="color:var(--text-secondary);">Para acceder a tus Archivos y Tareas, abre el PC en tu
-                        Escritorio dentro de la Oficina Virtual.</p>
+                    style="padding: 20px; height: 100%; display: flex; flex: 1;">
+                    <div class="flex-row space-between align-center">
+                        <h2>📁 Gestor de Archivos Avanzado</h2>
+                        <div class="flex-row gap-sm">
+                            <button id="btn-hud-upload-file" class="btn btn-primary">Subir Archivo</button>
+                            <button id="btn-hud-new-folder" class="btn">Nueva Carpeta</button>
+                            <button id="btn-hud-refresh-files" class="btn btn-primary"
+                                style="background:#10b981; border-color:#10b981;">↻ Cargar</button>
+                        </div>
+                    </div>
+
+                    <input type="file" id="input-hud-upload-drive" class="hidden">
+
+                    <div class="flex-row flex-1 gap-md" style="min-height: 0;">
+                        <!-- LEFT PANE: FOLDERS -->
+                        <div class="glass-panel-strong flex-col"
+                            style="flex: 0 0 280px; padding: 15px; border-radius: 8px; overflow-y:auto; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1);">
+                            <h3
+                                style="margin-top:0; border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:8px; margin-bottom:15px; color:#facc15; font-size: 18px;">
+                                Carpetas</h3>
+                            <div id="hud-drive-folders-list" class="flex-col gap-sm flex-1">
+                                <p style="color:var(--text-secondary); text-align:center; padding-top: 10px;">Haz click
+                                    en Cargar...</p>
+                            </div>
+                        </div>
+
+                        <!-- RIGHT PANE: FILES -->
+                        <div class="glass-panel-strong flex-col"
+                            style="flex: 1; padding: 15px; border-radius: 8px; overflow-y:auto; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);">
+                            <h3 id="hud-drive-files-header"
+                                style="margin-top:0; border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:8px; margin-bottom:15px; color:#bfdbfe; font-size: 18px;">
+                                Contenido de "Raíz"</h3>
+                            <div id="hud-drive-files-list" class="flex-col gap-sm flex-1" style="position:relative;">
+                                <p style="color:var(--text-secondary); text-align:center; padding-top: 20px;">Esperando
+                                    conexión...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: PROYECCIÓN -->
+            <section id="view-projection" class="view-section hidden flex-col">
+                <div class="glass-panel-strong flex-col gap-md"
+                    style="padding: 20px; height: 100%; display: flex; flex: 1; align-items:center;">
+                    <h2 style="margin-bottom:20px;">📽️ Panel de Proyección</h2>
+                    <p style="color:var(--text-secondary); text-align:center; max-width:500px; margin-bottom:30px;">
+                        Selecciona lo que deseas proyectar para que todos en tu zona actual puedan verlo en la pantalla
+                        principal.
+                    </p>
+                    <div class="flex-row gap-lg flex-wrap justify-center">
+                        <button id="btn-project-whiteboard" class="btn lg-btn"
+                            style="flex: 1; min-width: 200px; height: 80px; font-size: 18px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                            <span style="font-size:30px; margin-bottom:5px;">🖍️</span> Pizarra
+                        </button>
+                        <button id="btn-project-document" class="btn lg-btn"
+                            style="flex: 1; min-width: 200px; height: 80px; font-size: 18px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                            <span style="font-size:30px; margin-bottom:5px;">📄</span> Documento
+                        </button>
+                        <button id="btn-project-screen" class="btn btn-primary lg-btn"
+                            style="flex: 1; min-width: 200px; height: 80px; font-size: 18px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                            <span style="font-size:30px; margin-bottom:5px;">🖥️</span> Pantalla
+                        </button>
+                    </div>
                 </div>
             </section>
 
             <!-- VIEW: CONFIGURACIÓN -->
-            <section id="view-settings" class="view-section hidden">
-                <div class="placeholder-content glass-panel-strong"
-                    style="max-width: 500px; margin: 0 auto; text-align: left; padding: 30px;">
-                    <h2 style="text-align: center; margin-bottom: 20px;">⚙️ Configuración del Sistema</h2>
-                    <div class="form-group">
-                        <label style="font-weight: bold; margin-bottom: 8px; display: block;">Volumen Música
-                            (Fondo):</label>
-                        <input type="range" id="volume-bgm"
-                            style="width: 100%; height: 6px; border-radius: 4px; outline: none; transition: .2s;"
-                            min="0" max="1" step="0.05" value="0.2">
+            <section id="view-settings" class="view-section hidden flex-col">
+                <div class="glass-panel-strong flex-col gap-md"
+                    style="max-width: 600px; margin: 0 auto; padding: 30px; margin-top: 40px; overflow-y:auto; max-height:80%;">
+                    <h2 style="text-align: center; margin-bottom: 20px;">⚙️ Configuración Avanzada</h2>
+
+                    <h4
+                        style="border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:5px; margin-top:10px; color:#facc15;">
+                        Audio</h4>
+                    <div class="form-group row">
+                        <label style="flex:1;">Música (Fondo):</label>
+                        <input type="range" id="volume-bgm" style="flex:2;" min="0" max="1" step="0.05" value="0.2">
                     </div>
-                    <div class="form-group" style="margin-top: 25px;">
-                        <label style="font-weight: bold; margin-bottom: 8px; display: block;">Volumen Voces
-                            (Compañeros):</label>
-                        <input type="range" id="volume-voices"
-                            style="width: 100%; height: 6px; border-radius: 4px; outline: none; transition: .2s;"
-                            min="0" max="1" step="0.05" value="1.0">
+                    <div class="form-group row">
+                        <label style="flex:1;">Voces (Compañeros):</label>
+                        <input type="range" id="volume-voices" style="flex:2;" min="0" max="1" step="0.05" value="1.0">
                     </div>
+
+                    <h4
+                        style="border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:5px; margin-top:20px; color:#facc15;">
+                        Gráficos y Rendimiento</h4>
+                    <div class="form-group row align-center space-between"
+                        style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px;">
+                        <label style="margin:0;">Limitar FPS (Ahorro Batería)</label>
+                        <select id="setting-fps-limit" class="custom-select" style="width:120px; font-size:14px;">
+                            <option value="60">60 FPS (Suave)</option>
+                            <option value="30">30 FPS (Ahorro)</option>
+                        </select>
+                    </div>
+                    <div class="form-group row align-center space-between"
+                        style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; margin-top:10px;">
+                        <label style="margin:0;">Modo Bajo Rendimiento (Sin Sombras)</label>
+                        <input type="checkbox" id="setting-low-performance"
+                            style="width:20px; height:20px; cursor:pointer;">
+                    </div>
+
+                    <h4
+                        style="border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:5px; margin-top:20px; color:#facc15;">
+                        Perfil</h4>
+                    <button id="btn-reopen-avatar" class="btn btn-primary" style="margin-top:5px;">Personalizar Avatar y
+                        Rol</button>
+
                 </div>
             </section>
 
@@ -808,6 +906,14 @@
                     <div class="pc-icon" data-app="tutor">
                         <div class="icon-img">🎓</div>
                         <span>Tutor</span>
+                    </div>
+                    <div class="pc-icon" data-app="mattermost">
+                        <div class="icon-img">💬</div>
+                        <span>Mattermost</span>
+                    </div>
+                    <div class="pc-icon" data-app="chatwoot">
+                        <div class="icon-img">🎧</div>
+                        <span>Chatwoot</span>
                     </div>
                 </div>
 
