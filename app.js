@@ -1993,7 +1993,7 @@ class NetworkController {
                     call.answer(); // only receive stream, don't send local
                     call.on('stream', (remoteStream) => {
                         localIsPresenter = false;
-                        document.getElementById('presentation-viewer').style.display = 'block';
+                        document.getElementById('presentation-viewer').classList.remove('hidden');
                         document.getElementById('presentation-content-area').innerHTML = `<video id="presentation-video" autoplay playsinline style="width:100%; height:100%; border:none; background:#000;"></video>`;
                         document.getElementById('presentation-video').srcObject = remoteStream;
                         document.getElementById('presentation-controls').classList.add('hidden');
@@ -3585,7 +3585,7 @@ window.startPresentation = function (url) {
     let projModal = document.getElementById('projection-options-modal');
     if (projModal) projModal.classList.add('hidden');
 
-    document.getElementById('presentation-viewer').style.display = 'block';
+    document.getElementById('presentation-viewer').classList.remove('hidden');
     document.getElementById('presentation-content-area').innerHTML = `<iframe src="${url}" allowfullscreen style="width:100%; height:100%; border:none;"></iframe>`;
     document.getElementById('presentation-controls').classList.remove('hidden');
     document.getElementById('presentation-viewer-hint').classList.add('hidden');
@@ -3597,7 +3597,7 @@ window.startPresentation = function (url) {
 
 window.stopPresentation = function () {
     localIsPresenter = false;
-    document.getElementById('presentation-viewer').style.display = 'none';
+    document.getElementById('presentation-viewer').classList.add('hidden');
     document.getElementById('presentation-content-area').innerHTML = '';
 
     if (window.presentationStream) {
@@ -3633,17 +3633,17 @@ let checkSocketInterval = setInterval(() => {
         window.socket.on('zone_broadcast', (data) => {
             if (data.type === 'present_doc' && data.presenterId !== window.socket.id) {
                 localIsPresenter = false;
-                document.getElementById('presentation-viewer').style.display = 'block';
+                document.getElementById('presentation-viewer').classList.remove('hidden');
                 // El iframe para los espectadores usa pointer-events:none para bloquear manipulación
                 document.getElementById('presentation-content-area').innerHTML = `<iframe src="${data.url}" style="width:100%; height:100%; border:none; pointer-events:none;"></iframe>`;
                 document.getElementById('presentation-controls').classList.add('hidden');
                 document.getElementById('presentation-viewer-hint').classList.remove('hidden');
             } else if (data.type === 'stop_present_doc' && !localIsPresenter) {
-                document.getElementById('presentation-viewer').style.display = 'none';
+                document.getElementById('presentation-viewer').classList.add('hidden');
                 document.getElementById('presentation-content-area').innerHTML = '';
             } else if (data.type === 'present_screen_start' && data.presenterId !== window.socket.id) {
                 localIsPresenter = false;
-                document.getElementById('presentation-viewer').style.display = 'block';
+                document.getElementById('presentation-viewer').classList.remove('hidden');
                 document.getElementById('presentation-content-area').innerHTML = `<div style="display:flex; height:100%; align-items:center; justify-content:center; color:white; background:#000;"><p>Recibiendo transmisión de pantalla WebRTC...</p></div>`;
                 document.getElementById('presentation-controls').classList.add('hidden');
                 document.getElementById('presentation-viewer-hint').classList.remove('hidden');
@@ -3684,7 +3684,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
 
             localIsPresenter = true;
-            document.getElementById('presentation-viewer').style.display = 'block';
+            document.getElementById('presentation-viewer').classList.remove('hidden');
 
             document.getElementById('presentation-content-area').innerHTML = `<video id="presentation-video" autoplay playsinline style="width:100%; height:100%; border:none; background:#000;"></video>`;
             document.getElementById('presentation-video').srcObject = stream;
