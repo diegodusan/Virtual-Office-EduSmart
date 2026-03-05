@@ -672,6 +672,12 @@ input[type="checkbox"] {
     border: 2px solid var(--border-color);
 }
 
+#chat-messages p.system-message {
+    background: #fde68a;
+    border-color: #b45309;
+    color: #451a03;
+}
+
 .chat-input-row {
     gap: 8px;
 }

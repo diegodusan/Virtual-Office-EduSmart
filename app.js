@@ -2048,7 +2048,12 @@ class NetworkController {
 
         this.socket.on('chatMessage', (msgObj) => {
             let msg = document.createElement('p');
-            msg.innerHTML = `<b style="color:var(--accent)">${msgObj.nick}:</b> ${msgObj.text}`;
+            if (msgObj.nick === 'Sistema' || msgObj.nick === 'System') {
+                msg.className = 'system-message';
+                msg.innerHTML = `<b style="color:#b45309">${msgObj.nick}:</b> ${msgObj.text}`;
+            } else {
+                msg.innerHTML = `<b style="color:var(--accent)">${msgObj.nick}:</b> ${msgObj.text}`;
+            }
             document.getElementById('chat-messages').appendChild(msg);
             document.getElementById('chat-messages').scrollTop = 9999;
         });
