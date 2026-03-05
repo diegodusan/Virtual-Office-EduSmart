@@ -474,41 +474,12 @@
                 </div>
             </section>
 
-            <!-- VIEW: ARCHIVOS -->
+            <!-- VIEW: ARCHIVOS (Moved to PC OS Modal) -->
             <section id="view-files" class="view-section hidden flex-col">
-                <div class="glass-panel-strong file-manager-container flex-col gap-md"
-                    style="padding: 20px; height: 100%; display: flex; flex: 1;">
-                    <div class="flex-row space-between align-center">
-                        <h2>📁 Gestor de Archivos (Directorio Remoto)</h2>
-                        <button id="btn-refresh-files" class="btn btn-primary">↻ Cargar</button>
-                    </div>
-                    <!-- Formulario de Subida -->
-                    <div class="flex-row gap-md align-center"
-                        style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px;">
-                        <input type="file" id="input-upload-drive" class="custom-select" style="flex:1;">
-                        <button id="btn-upload-drive" class="btn btn-primary"
-                            style="background: #eab308; border-color:#eab308;">Subir Archivo</button>
-                    </div>
-
-                    <div id="drive-files-list" class="flex-col gap-sm overflow-y flex-1"
-                        style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; min-height: 200px; position:relative;">
-                        <p style="color:var(--text-secondary); text-align:center; padding-top: 20px;">Esperando
-                            conexión...</p>
-                    </div>
-
-                    <!-- DRIVE CONTEXT MENU -->
-                    <div id="drive-context-menu" class="context-menu glass-panel-strong hidden"
-                        style="position:absolute; width: 150px; flex-direction: column; padding: 5px; border-radius: 8px; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
-                        <button class="btn btn-ghost" id="ctx-open"
-                            style="text-align:left; width:100%; padding:8px;">Abrir Documento</button>
-                        <button class="btn btn-ghost" id="ctx-new-folder"
-                            style="text-align:left; width:100%; padding:8px;">Crear Carpeta</button>
-                        <button class="btn btn-ghost" id="ctx-rename"
-                            style="text-align:left; width:100%; padding:8px;">Renombrar</button>
-                        <button class="btn btn-ghost" id="ctx-delete"
-                            style="text-align:left; width:100%; padding:8px; color:#ef4444;">Eliminar</button>
-                    </div>
-
+                <div class="glass-panel-strong flex-col gap-md"
+                    style="padding: 20px; height: 100%; display: flex; flex: 1; justify-content:center; align-items:center;">
+                    <p style="color:var(--text-secondary);">Para acceder a tus Archivos y Tareas, abre el PC en tu
+                        Escritorio dentro de la Oficina Virtual.</p>
                 </div>
             </section>
 
@@ -803,13 +774,17 @@
     <div id="pc-os-modal" class="modal-backdrop hidden" style="z-index: 250;">
         <div class="pc-desktop anime-pop flex-col">
             <div class="pc-taskbar flex-row space-between align-center">
+                <button id="btn-pc-home" class="btn btn-primary hidden" style="font-size:11px; padding:2px 6px;">⬅
+                    Inicio</button>
                 <div class="pc-start-btn">EduOS</div>
                 <div class="pc-time" id="pc-time-display">12:00 PM</div>
                 <button id="btn-close-pc" class="btn btn-icon"
                     style="background: rgba(239, 68, 68, 0.8); color: white; width: 30px; height: 30px; font-size: 14px; margin-right: 5px;">X</button>
             </div>
-            <div class="pc-workspace flex-1">
-                <div class="pc-icon-grid">
+            <div class="pc-workspace flex-1" style="position:relative;">
+
+                <!-- PC GRID (HOME) -->
+                <div class="pc-icon-grid" id="pc-home-grid">
                     <div class="pc-icon" data-app="archivos">
                         <div class="icon-img">📁</div>
                         <span>Archivos</span>
@@ -835,6 +810,48 @@
                         <span>Tutor</span>
                     </div>
                 </div>
+
+                <!-- PC INTERNAL APPS -->
+                <div id="pc-app-window" class="hidden flex-col"
+                    style="position:absolute; top:0; left:0; width:100%; height:100%; background:var(--bg-glass); display:flex; padding:15px; overflow-y:auto;">
+
+                    <!-- FILE MANAGER INJECTED HERE -->
+                    <div id="pc-app-content-archivos" class="hidden flex-col flex-1 gap-md">
+                        <div class="flex-row space-between align-center">
+                            <h2 style="font-size:24px; margin:0; text-shadow:1px 1px 2px black;">📁 Gestor de Archivos
+                                (Directorio Remoto)</h2>
+                            <button id="btn-refresh-files" class="btn btn-primary">↻ Cargar</button>
+                        </div>
+                        <!-- Formulario de Subida -->
+                        <div class="flex-row gap-md align-center"
+                            style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px;">
+                            <input type="file" id="input-upload-drive" class="custom-select" style="flex:1;">
+                            <button id="btn-upload-drive" class="btn btn-primary"
+                                style="background: #eab308; border-color:#eab308;">Subir Archivo</button>
+                        </div>
+
+                        <div id="drive-files-list" class="flex-col gap-sm overflow-y flex-1"
+                            style="background: rgba(0,0,0,0.4); padding: 15px; border-radius: 8px; min-height: 200px; position:relative;">
+                            <p style="color:var(--text-secondary); text-align:center; padding-top: 20px;">Esperando
+                                conexión...</p>
+                        </div>
+
+                        <!-- DRIVE CONTEXT MENU -->
+                        <div id="drive-context-menu" class="context-menu glass-panel-strong hidden"
+                            style="position:absolute; width: 150px; flex-direction: column; padding: 5px; border-radius: 8px; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                            <button class="btn btn-ghost" id="ctx-open"
+                                style="text-align:left; width:100%; padding:8px;">Abrir Documento</button>
+                            <button class="btn btn-ghost" id="ctx-new-folder"
+                                style="text-align:left; width:100%; padding:8px;">Crear Carpeta</button>
+                            <button class="btn btn-ghost" id="ctx-rename"
+                                style="text-align:left; width:100%; padding:8px;">Renombrar</button>
+                            <button class="btn btn-ghost" id="ctx-delete"
+                                style="text-align:left; width:100%; padding:8px; color:#ef4444;">Eliminar</button>
+                        </div>
+                    </div>
+
+                </div>
+
             </div>
         </div>
     </div>
