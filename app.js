@@ -2559,6 +2559,112 @@ window.openAIChatGlobal = () => {
 };
 
 /* =====================================================================
+   7.C. AI SPEECH-TO-TEXT (STT) & VOICE TASKS
+====================================================================== */
+let recognition = null;
+let isListening = false;
+let aiAudioNPC = null;
+let _windowAudioCheckTime = 0;
+
+if ('webkitSpeechRecognition' in window) {
+    recognition = new webkitSpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'es-ES';
+
+    recognition.onstart = () => {
+        isListening = true;
+        let ind = document.getElementById('audio-listening-indicator');
+        if (ind) ind.classList.remove('hidden');
+    };
+
+    recognition.onresult = async (event) => {
+        let transcript = event.results[0][0].transcript;
+        console.log("🗣️ STT Local Escuchado: " + transcript);
+        await processVoiceCommand(transcript);
+    };
+
+    recognition.onerror = (event) => {
+        console.warn("Speech Recognition Error", event.error);
+        isListening = false;
+        let ind = document.getElementById('audio-listening-indicator');
+        if (ind) ind.classList.add('hidden');
+    };
+
+    recognition.onend = () => {
+        isListening = false;
+        let ind = document.getElementById('audio-listening-indicator');
+        if (ind) ind.classList.add('hidden');
+    };
+}
+
+async function processVoiceCommand(text) {
+    if (!aiAudioNPC) return;
+
+    let prompt = `Actúa como un procesador de lenguaje natural. Eres una secretaria analizando un texto dicho por tu jefe.
+Texto escuchado: "${text}"
+
+Si el texto es una orden clara para AGENDAR algo, CREAR UNA TAREA, ASIGNAR UN PENDIENTE o RECORDATORIO, retorna JSON: { "type": "task", "name": "Resumen conciso de la tarea de max 5 palabras", "date": "YYYY-MM-DD", "responsible": "Nombre (si lo menciona, sino vacio)" }
+Si el texto está PREGUNTANDO por las tareas pendientes, o qué hay por hacer, retorna JSON: { "type": "query_tasks" }
+Si el texto no encaja fuertemente con crear una tarea o consultarla, retorna JSON: { "type": "none" }`;
+
+    try {
+        let res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(prompt)}?model=openai&json=true`);
+        let dataStr = await res.text();
+
+        let jsonStr = dataStr.replace(/```json/g, '').replace(/```/g, '').trim();
+        let parsed = JSON.parse(jsonStr);
+
+        if (parsed.type === 'task') {
+            let desc = document.getElementById('ai-task-suggestion-desc');
+            if (desc) desc.innerHTML = `<b>Tarea:</b> ${parsed.name}<br><b>Para:</b> ${parsed.responsible || 'Mí'}<br><b>Fecha:</b> ${parsed.date || 'Pronto'}`;
+
+            let modal = document.getElementById('ai-task-suggestion-modal');
+            if (modal) modal.classList.remove('hidden');
+
+            let btnAccept = document.getElementById('btn-ai-task-accept');
+            if (btnAccept) {
+                btnAccept.onclick = async () => {
+                    modal.classList.add('hidden');
+                    try {
+                        let btn = document.getElementById('btn-refresh-tasks');
+                        if (btn) btn.innerHTML = "Subiendo Tarea...";
+                        await fetch(GAS_BACKEND_URL, {
+                            method: 'POST',
+                            body: JSON.stringify({ action: 'createTask', name: parsed.name, deadline: parsed.date || '2023-12-31', responsible: parsed.responsible || 'Autocreado' })
+                        });
+                        if (typeof loadTasks === 'function') loadTasks();
+                        if (typeof loadCalendar === 'function') loadCalendar();
+                        if (btn) btn.innerHTML = "↻ Actualizar";
+                    } catch (e) { }
+                };
+            }
+            let btnReject = document.getElementById('btn-ai-task-reject');
+            if (btnReject) {
+                btnReject.onclick = () => {
+                    modal.classList.add('hidden');
+                };
+            }
+
+        } else if (parsed.type === 'query_tasks') {
+            openAIChat(aiAudioNPC);
+            let hist = document.getElementById('ai-chat-history');
+            if (hist) {
+                hist.innerHTML += `
+                    <div style="background:#1e293b; padding:10px; border-radius:10px 10px 10px 0; align-self:flex-start; max-width:85%;">
+                        <span style="color:var(--accent); font-weight:bold; font-size:12px;">${aiAudioNPC.nickname}</span><br>
+                        ¡Claro, jefe! Abriendo el módulo de tareas en el entorno de la oficina... Por favor abre la app de Tareas en tu teléfono o PC para ver los detalles.
+                    </div>`;
+                hist.scrollTop = 9999;
+            }
+        }
+
+    } catch (e) {
+        console.error("AI STT Parse Error", e);
+    }
+}
+
+/* =====================================================================
    8. MAIN ENGINE BOOTSTRAP
 ====================================================================== */
 let _map, _input, _renderer, _ui, _network;
@@ -2722,6 +2828,24 @@ function mainLoop(timestamp) {
             if (_aiReyes) allNPCs.push(_aiReyes);
             if (_aiTesi) allNPCs.push(_aiTesi);
 
+            // Audio Proximity Check para Secretarías IA
+            if (timestamp - _windowAudioCheckTime > 2000 && recognition) {
+                _windowAudioCheckTime = timestamp;
+                let nearNPC = null;
+                for (let npc of allNPCs) {
+                    if (npc.isAI) {
+                        let dx = _player.x - npc.x; let dy = _player.y - npc.y;
+                        if (Math.sqrt(dx * dx + dy * dy) < 80) { nearNPC = npc; break; }
+                    }
+                }
+                aiAudioNPC = nearNPC;
+                if (nearNPC && !isListening) {
+                    try { recognition.start(); } catch (e) { }
+                } else if (!nearNPC && isListening) {
+                    try { recognition.stop(); } catch (e) { }
+                }
+            }
+
             _renderer.renderScene(_map, [_player, ...allNPCs, ...remotes]);
         }
 
@@ -2738,7 +2862,7 @@ function mainLoop(timestamp) {
    9. GOOGLE APPS SCRIPT INTEGRATION (DRIVE, TASKS, CALENDAR)
 ====================================================================== */
 // El usuario debe pegar la URL web resultante de publicar el Apps Script aquí
-const GAS_BACKEND_URL = 'https://script.google.com/macros/s/AKfycbx7Qzs34aOdiklwFAjdSw7Zwm5ES-yG6bnf9CFGnTWjf5PV0qDn2tXbTqBM4iC0Zye4zA/exec';
+const GAS_BACKEND_URL = 'https://script.google.com/macros/s/AKfycbw_yV0D4_nMIi5vHURBSw3CKkKc9odyX7R48_l-mOzsUQcQt-YN9kp0JhouS8k8JchklA/exec';
 const TARGET_SPREADSHEET_ID = '1Zh2YRueqxpRFQbWMUdKRM9yunqt3HmWajXJxw0A1_jo';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -2801,31 +2925,29 @@ async function loadDriveFiles() {
         if (!data.success) throw new Error(data.error);
 
         let files = data.files;
-        if (!files || files.length == 0) {
-            listUI.innerHTML = '<p style="text-align:center;">La carpeta está vacía.</p>';
-            return;
-        }
 
         let html = '';
-        files.forEach((file) => {
-            let icon = '📄';
-            if (file.mimeType.includes('spreadsheet')) icon = '📊';
-            if (file.mimeType.includes('document')) icon = '📝';
-            if (file.mimeType.includes('image')) icon = '🖼️';
+        if (files && files.length > 0) {
+            files.forEach((file) => {
+                let icon = '📄';
+                if (file.mimeType.includes('spreadsheet')) icon = '📊';
+                if (file.mimeType.includes('document')) icon = '📝';
+                if (file.mimeType.includes('image')) icon = '🖼️';
+                if (file.mimeType.includes('folder')) icon = '📁';
 
-            html += `<div class="file-item flex-row space-between align-center" style="background:rgba(255,255,255,0.1); padding:8px 12px; border-radius:6px; margin-bottom: 5px;">
-                        <span>${icon} ${file.name}</span>
-                        <div class="flex-row gap-sm">
-                            <a href="${file.url}" target="_blank" class="btn btn-primary" style="padding: 4px 8px; font-size:12px;">Abrir</a>
-                            <button onclick="deleteDriveFile('${file.id}')" class="btn" style="padding: 4px 8px; font-size:12px; background:var(--danger)">Eliminar</button>
-                        </div>
-                     </div>`;
-        });
+                // Context Menu trigger
+                html += `<div class="file-item flex-row space-between align-center" oncontextmenu="handleDriveContextMenu(event, '${file.id}', '${file.name}', '${file.url}')" style="background:rgba(255,255,255,0.1); padding:8px 12px; border-radius:6px; margin-bottom: 5px; cursor:pointer;" title="Click derecho para más opciones">
+                            <span>${icon} ${file.name}</span>
+                         </div>`;
+            });
+        } else {
+            html = '<p style="text-align:center;">La carpeta está vacía.</p>';
+        }
 
         // Add spreadsheet maestro en la parte superior
         let maestroBtn = `<div class="file-item flex-row space-between align-center" style="background:rgba(0,0,0,0.3); border:1px solid var(--accent); padding:8px 12px; border-radius:6px; margin-bottom: 15px;">
                             <span style="color:var(--accent)">📊 SPREADSHEET PRINCIPAL (BD)</span>
-                            <a href="https://docs.google.com/spreadsheets/d/${TARGET_SPREADSHEET_ID}/edit" target="_blank" class="btn btn-primary" style="padding: 4px 8px; font-size:12px;">Abrir Base de Datos</a>
+                            <button onclick="window.openWebViewGlobal('https://docs.google.com/spreadsheets/d/${TARGET_SPREADSHEET_ID}/edit?usp=sharing', 'Base de Datos')" class="btn btn-primary" style="padding: 4px 8px; font-size:12px;">Abrir Intero</button>
                           </div>`;
 
         listUI.innerHTML = maestroBtn + html;
@@ -2833,6 +2955,76 @@ async function loadDriveFiles() {
         listUI.innerHTML = `<p style="color:var(--danger); text-align:center;">Error: ${err.message}</p>`;
     }
 }
+
+// Context Menu Logic
+let contextMenuTarget = null;
+function handleDriveContextMenu(e, id, name, url) {
+    e.preventDefault();
+    contextMenuTarget = { id, name, url };
+    let menu = document.getElementById('drive-context-menu');
+    menu.style.left = e.offsetX + 'px';
+    menu.style.top = e.offsetY + 'px';
+    menu.classList.remove('hidden');
+}
+
+document.addEventListener('click', (e) => {
+    let menu = document.getElementById('drive-context-menu');
+    if (menu && !menu.contains(e.target)) {
+        menu.classList.add('hidden');
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    let menu = document.getElementById('drive-context-menu');
+    if (menu) {
+        document.getElementById('ctx-open').onclick = () => {
+            menu.classList.add('hidden');
+            if (contextMenuTarget) {
+                // If it's a drive file, try to open in preview format inside the webview instead of new tab
+                let previewUrl = contextMenuTarget.url;
+                if (previewUrl.includes('/view')) previewUrl = previewUrl.replace('/view', '/preview');
+                if (previewUrl.includes('/edit')) previewUrl = previewUrl.replace('/edit', '/preview');
+                window.openWebViewGlobal(previewUrl, "Visualizador: " + contextMenuTarget.name);
+            }
+        };
+        document.getElementById('ctx-new-folder').onclick = async () => {
+            menu.classList.add('hidden');
+            let fn = prompt("Nombre de la nueva carpeta:");
+            if (!fn) return;
+            try {
+                let res = await fetch(GAS_BACKEND_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'createFolder', folderName: fn })
+                });
+                let data = await res.json();
+                if (data.success) loadDriveFiles();
+                else alert("Error: " + data.error);
+            } catch (e) { }
+        };
+        document.getElementById('ctx-rename').onclick = async () => {
+            menu.classList.add('hidden');
+            if (!contextMenuTarget) return;
+            let nn = prompt("Nuevo nombre para " + contextMenuTarget.name + ":", contextMenuTarget.name);
+            if (!nn || nn === contextMenuTarget.name) return;
+            try {
+                let res = await fetch(GAS_BACKEND_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'renameFile', fileId: contextMenuTarget.id, newName: nn })
+                });
+                let data = await res.json();
+                if (data.success) loadDriveFiles();
+                else alert("Error: " + data.error);
+            } catch (e) { }
+        };
+        document.getElementById('ctx-delete').onclick = () => {
+            menu.classList.add('hidden');
+            if (!contextMenuTarget) return;
+            if (confirm('¿Eliminar ' + contextMenuTarget.name + '?')) {
+                deleteDriveFile(contextMenuTarget.id);
+            }
+        };
+    }
+});
 
 async function uploadDriveFile() {
     let input = document.getElementById('input-upload-drive');
@@ -2894,7 +3086,6 @@ async function deleteDriveFile(fileId) {
 async function loadTasks() {
     let listUI = document.getElementById('tasks-list-container');
     listUI.innerHTML = '<p style="text-align:center;">Sincronizando tareas...</p>';
-    if (GAS_BACKEND_URL === 'https://script.google.com/macros/s/AKfycbzD5pq6b-FusIosz-PBoubm-w2A122o6s8kvTsxc7YdXgKOeAns-TXIfcpNo-J-HoMkzA/exec') return;
 
     try {
         let res = await fetch(`${GAS_BACKEND_URL}?action=getTasks`);

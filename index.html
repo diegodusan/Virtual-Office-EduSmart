@@ -384,6 +384,29 @@
                     </div>
                 </div>
 
+                <!-- AI Speech Status Indicator -->
+                <div id="audio-listening-indicator" class="overlay top-center hidden"
+                    style="background: rgba(16, 185, 129, 0.8); padding: 5px 15px; border-radius: 20px; color: white; font-weight: bold; animation: pulse 1.5s infinite; z-index: 5000;">
+                    🎤 Escuchando comandos...
+                </div>
+
+                <!-- AI Voice Task Suggestion Popup -->
+                <div id="ai-task-suggestion-modal" class="hidden glass-panel-strong flex-col"
+                    style="position:fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 350px; z-index: 5000; border-left: 5px solid #06b6d4;">
+                    <div style="padding: 15px;">
+                        <h4 style="margin:0 0 5px 0; color: #06b6d4;">💡 Tarea Detectada por Voz</h4>
+                        <p style="margin:0 0 10px 0; font-size: 13px; color: #f8fafc;" id="ai-task-suggestion-desc">
+                            Resumen de la tarea detectada</p>
+                        <div class="flex-row space-between">
+                            <button id="btn-ai-task-reject" class="btn btn-danger"
+                                style="padding: 4px 10px; font-size: 11px;">✕ Descartar</button>
+                            <button id="btn-ai-task-accept" class="btn btn-primary"
+                                style="background:#10b981; border:none; padding: 4px 10px; font-size: 11px;">✓ Crear
+                                Tarea</button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- UI Overlay: Remotes (Simulados) -->
                 <div id="remote-videos-container" class="overlay center-left flex-col gap-md"></div>
 
@@ -464,10 +487,24 @@
                     </div>
 
                     <div id="drive-files-list" class="flex-col gap-sm overflow-y flex-1"
-                        style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; min-height: 200px;">
+                        style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; min-height: 200px; position:relative;">
                         <p style="color:var(--text-secondary); text-align:center; padding-top: 20px;">Esperando
                             conexión...</p>
                     </div>
+
+                    <!-- DRIVE CONTEXT MENU -->
+                    <div id="drive-context-menu" class="context-menu glass-panel-strong hidden"
+                        style="position:absolute; width: 150px; flex-direction: column; padding: 5px; border-radius: 8px; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                        <button class="btn btn-ghost" id="ctx-open"
+                            style="text-align:left; width:100%; padding:8px;">Abrir Documento</button>
+                        <button class="btn btn-ghost" id="ctx-new-folder"
+                            style="text-align:left; width:100%; padding:8px;">Crear Carpeta</button>
+                        <button class="btn btn-ghost" id="ctx-rename"
+                            style="text-align:left; width:100%; padding:8px;">Renombrar</button>
+                        <button class="btn btn-ghost" id="ctx-delete"
+                            style="text-align:left; width:100%; padding:8px; color:#ef4444;">Eliminar</button>
+                    </div>
+
                 </div>
             </section>
 
