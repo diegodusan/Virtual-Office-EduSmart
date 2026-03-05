@@ -2714,70 +2714,63 @@ setInterval(() => {
 }, 100); // 10 ticks/s
 
 /* =====================================================================
-   CAMERA VERIFIER (Motion Detection AFK)
+   CAMERA VERIFIER (MediaPipe Face Detection)
 ====================================================================== */
-const motionCanvas = document.createElement('canvas'); // hidden canvas
-const motionCtx = motionCanvas.getContext('2d', { willReadFrequently: true });
-let _lastImageData = null;
-let _afkTimer = 60; // Segundos permitidos sin movimiento
+let _afkTimer = 60; // Segundos permitidos sin que se vea un rostro
 let _isAFK = false;
+let _faceDetector = null;
+let _faceDetectionRunning = false;
 
-setInterval(() => {
-    if (!window.localStream || !window.localStream.getVideoTracks()[0] || !window.localStream.getVideoTracks()[0].enabled) return;
+if (window.FaceDetection) {
+    _faceDetector = new FaceDetection({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}` });
+    _faceDetector.setOptions({ model: 'short', minDetectionConfidence: 0.5 });
 
-    let video = document.getElementById('local-video');
-    if (!video || video.videoWidth === 0) return;
-
-    // Small resolution for performance
-    motionCanvas.width = 64;
-    motionCanvas.height = 48;
-    motionCtx.drawImage(video, 0, 0, motionCanvas.width, motionCanvas.height);
-
-    let currentImageData = motionCtx.getImageData(0, 0, motionCanvas.width, motionCanvas.height).data;
-
-    if (_lastImageData) {
-        let diffPixels = 0;
-        let diffThreshold = 30; // Diferencia min. de color
-
-        for (let i = 0; i < currentImageData.length; i += 4) {
-            let rDiff = Math.abs(currentImageData[i] - _lastImageData[i]);
-            let gDiff = Math.abs(currentImageData[i + 1] - _lastImageData[i + 1]);
-            let bDiff = Math.abs(currentImageData[i + 2] - _lastImageData[i + 2]);
-
-            if (rDiff > diffThreshold || gDiff > diffThreshold || bDiff > diffThreshold) {
-                diffPixels++;
-            }
-        }
-
-        // Si cambia más del 3% de los pixeles, hay movimiento
-        let percentDiff = diffPixels / (motionCanvas.width * motionCanvas.height);
-
-        if (percentDiff > 0.03) {
-            // MOVEMENT DETECTED
-            _afkTimer = 15;
+    _faceDetector.onResults((results) => {
+        if (results.detections.length > 0) {
+            // Rostro detectado
+            _afkTimer = 60;
             if (_isAFK) {
                 _isAFK = false;
                 _player.isAbsent = false;
                 if (_network && _network.socket.connected) {
-                    _network.socket.emit('chatMessage', { nick: "Sistema", text: `${_player.nickname} ha regresado a las ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` });
-                }
-            }
-        } else {
-            // NO MOVEMENT
-            _afkTimer--;
-            if (_afkTimer <= 0 && !_isAFK) {
-                _isAFK = true;
-                _player.isAbsent = true;
-                if (_network && _network.socket.connected) {
-                    _network.socket.emit('chatMessage', { nick: "Sistema", text: `${_player.nickname} se ha ausentado a las ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` });
+                    _network.socket.emit('chatMessage', { nick: "Sistema", text: `${_player.nickname} ha regresado a la pantalla (Hora: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` });
                 }
             }
         }
+    });
+}
+
+// Check timer tick every second
+setInterval(() => {
+    if (!window.localStream || !window.localStream.getVideoTracks()[0] || !window.localStream.getVideoTracks()[0].enabled) return;
+
+    // Tick AFK Timer naturally when face is not updating it back to 60
+    _afkTimer--;
+    if (_afkTimer <= 0 && !_isAFK) {
+        _isAFK = true;
+        _player.isAbsent = true;
+        if (_network && _network.socket.connected) {
+            _network.socket.emit('chatMessage', { nick: "Sistema", text: `${_player.nickname} se ha ausentado a las ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` });
+        }
     }
+}, 1000);
 
-    _lastImageData = currentImageData;
-
-}, 1000); // Evaluar cada segundo
+// Async Face poll loop
+async function pollFaceDetection() {
+    if (_faceDetector && window.localStream && window.localStream.getVideoTracks()[0].enabled) {
+        let videoEl = document.getElementById('local-video');
+        if (videoEl && videoEl.videoWidth > 0 && !_faceDetectionRunning) {
+            _faceDetectionRunning = true;
+            try {
+                await _faceDetector.send({ image: videoEl });
+            } catch (e) { }
+            _faceDetectionRunning = false;
+        }
+    }
+    // Poll again
+    setTimeout(pollFaceDetection, 300); // Check face every 300ms
+}
+pollFaceDetection();
 
 function mainLoop(timestamp) {
     if (!_isRunning) return;
