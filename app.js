@@ -2855,7 +2855,7 @@ function mainLoop(timestamp) {
    9. GOOGLE APPS SCRIPT INTEGRATION (DRIVE, TASKS, CALENDAR)
 ====================================================================== */
 // El usuario debe pegar la URL web resultante de publicar el Apps Script aquí
-const GAS_BACKEND_URL = 'https://script.google.com/macros/s/AKfycbw_yV0D4_nMIi5vHURBSw3CKkKc9odyX7R48_l-mOzsUQcQt-YN9kp0JhouS8k8JchklA/exec';
+const GAS_BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzkr-FUOKotoyTlNc_pZYaSsVMapqngzEij8NyV0YBMXLfUnlZJjo5JdMlOJ_cjTEd47Q/exec';
 const TARGET_SPREADSHEET_ID = '1Zh2YRueqxpRFQbWMUdKRM9yunqt3HmWajXJxw0A1_jo';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -2904,60 +2904,156 @@ document.addEventListener('DOMContentLoaded', () => {
 // ---------------------------------------------------------------------
 // ARCHIVOS (Google Drive via GAS)
 // ---------------------------------------------------------------------
+
+let _driveDataCache = []; // Almacena todos los items (carpetas y archivos) del backend
+let _currentFolderId = 'Raíz'; // Carpeta actuálmente seleccionada en la vista izquierda
+
 async function loadDriveFiles() {
-    let listUI = document.getElementById('drive-files-list');
-    listUI.innerHTML = '<p style="text-align:center;">Cargando archivos desde Drive...</p>';
+    let listUIFolders = document.getElementById('drive-folders-list');
+    let listUIFiles = document.getElementById('drive-files-list');
+
+    listUIFolders.innerHTML = '<p style="text-align:center;">Cargando...</p>';
+    listUIFiles.innerHTML = '<p style="text-align:center;">Cargando archivos desde Drive...</p>';
+
     if (GAS_BACKEND_URL === 'pega_aqui_la_url_de_tu_google_apps_script') {
-        listUI.innerHTML = '<p style="color:var(--danger); text-align:center;">Falta configurar GAS_BACKEND_URL en app.js</p>';
+        listUIFiles.innerHTML = '<p style="color:var(--danger); text-align:center;">Falta configurar GAS_BACKEND_URL en app.js</p>';
         return;
     }
 
     try {
         let res = await fetch(`${GAS_BACKEND_URL}?action=getFiles`);
         let data = await res.json();
-        if (!data.success) throw new Error(data.error);
+        if (!data.success) throw new Error(data.error || "Falla al conectar con Google Apps Script");
 
-        let files = data.files;
+        // El nuevo endpoint devuelve una propiedad "items" o sigue usando "files" con el hack plano
+        _driveDataCache = data.items || data.files || [];
 
-        let html = '';
-        if (files && files.length > 0) {
-            files.forEach((file) => {
-                let icon = '📄';
-                if (file.mimeType.includes('spreadsheet')) icon = '📊';
-                if (file.mimeType.includes('document')) icon = '📝';
-                if (file.mimeType.includes('image')) icon = '🖼️';
-                if (file.mimeType.includes('folder')) icon = '📁';
+        // Si el backend es viejo y no devuelve 'isFolder' o 'parent', le inventamos la data plana
+        _driveDataCache.forEach(i => {
+            if (i.parent === undefined) i.parent = "Raíz";
+            if (i.isFolder === undefined) i.isFolder = (i.mimeType && i.mimeType.includes("folder"));
+        });
 
-                // Context Menu trigger
-                html += `<div class="file-item flex-row space-between align-center" oncontextmenu="handleDriveContextMenu(event, '${file.id}', '${file.name}', '${file.url}')" style="background:rgba(255,255,255,0.1); padding:8px 12px; border-radius:6px; margin-bottom: 5px; cursor:pointer;" title="Click derecho para más opciones">
-                            <span>${icon} ${file.name}</span>
-                         </div>`;
-            });
-        } else {
-            html = '<p style="text-align:center;">La carpeta está vacía.</p>';
-        }
+        renderDriveFolders();
+        renderDriveFiles();
 
-        // Add spreadsheet maestro en la parte superior
-        let maestroBtn = `<div class="file-item flex-row space-between align-center" style="background:rgba(0,0,0,0.3); border:1px solid var(--accent); padding:8px 12px; border-radius:6px; margin-bottom: 15px;">
-                            <span style="color:var(--accent)">📊 SPREADSHEET PRINCIPAL (BD)</span>
-                            <button onclick="window.openWebViewGlobal('https://docs.google.com/spreadsheets/d/${TARGET_SPREADSHEET_ID}/edit?usp=sharing', 'Base de Datos')" class="btn btn-primary" style="padding: 4px 8px; font-size:12px;">Abrir Intero</button>
-                          </div>`;
-
-        listUI.innerHTML = maestroBtn + html;
     } catch (err) {
-        listUI.innerHTML = `<p style="color:var(--danger); text-align:center;">Error: ${err.message}</p>`;
+        listUIFiles.innerHTML = `<p style="color:var(--danger); text-align:center;">Error: ${err.message}</p>`;
     }
 }
 
+function renderDriveFolders() {
+    let listUIFolders = document.getElementById('drive-folders-list');
+    let html = '';
+
+    // Raíz siempre disponible
+    let rStyle = (_currentFolderId === 'Raíz') ? 'background: rgba(250, 204, 21, 0.2); border-left: 3px solid #facc15;' : 'cursor:pointer;';
+    html += `<div class="file-item flex-row space-between align-center" onclick="changeDriveFolder('Raíz', 'Raíz')" style="${rStyle} padding:8px 12px; border-radius:4px; margin-bottom: 5px;">
+                <span>📁 [Raíz]</span>
+             </div>`;
+
+    // Buscar items que sean carpetas y estén en la Raíz
+    let folders = _driveDataCache.filter(i => i.isFolder && i.parent === "Raíz");
+    folders.forEach(f => {
+        let fStyle = (_currentFolderId === f.name) ? 'background: rgba(250, 204, 21, 0.2); border-left: 3px solid #facc15;' : 'cursor:pointer;';
+        // Context menú sobre carpetas por si las quieren eliminar después
+        html += `<div class="file-item flex-row space-between align-center" onclick="changeDriveFolder('${f.name}', '${f.name}')" oncontextmenu="handleDriveContextMenu(event, '${f.id}', '${f.name}', '${f.url}', true)" style="${fStyle} padding:8px 12px; border-radius:4px; margin-bottom: 5px;">
+                    <span style="padding-left:15px; font-size:14px; color:#fef08a;">📁 [+] ${f.name}</span>
+                 </div>`;
+    });
+
+    listUIFolders.innerHTML = html;
+}
+
+function changeDriveFolder(folderId, folderVisualName) {
+    _currentFolderId = folderId;
+    document.getElementById('drive-files-header').textContent = `Contenido de "${folderVisualName}"`;
+    renderDriveFolders(); // Re-render para reubicar diseño "Active"
+    renderDriveFiles();
+}
+
+function renderDriveFiles() {
+    let listUIFiles = document.getElementById('drive-files-list');
+    let html = '';
+
+    // Solo archivos (no carpetas puras) correspondientes a _currentFolderId
+    let files = _driveDataCache.filter(i => !i.isFolder && i.parent === _currentFolderId);
+
+    if (files.length > 0) {
+        files.forEach((file) => {
+            let icon = '📄';
+            if (file.mimeType.includes('spreadsheet')) icon = '📊';
+            if (file.mimeType.includes('document')) icon = '📝';
+            if (file.mimeType.includes('image')) icon = '🖼️';
+
+            // Double click trigger y Context Menu trigger
+            html += `<div class="file-item flex-row space-between align-center" ondblclick="openDrivePreviewUrl('${file.url}', '${file.name}')" oncontextmenu="handleDriveContextMenu(event, '${file.id}', '${file.name}', '${file.url}', false)" style="background:rgba(255,255,255,0.1); padding:8px 12px; border-radius:6px; margin-bottom: 5px; cursor:pointer;" title="Doble clic para Abrir. Clic derecho para opciones.">
+                        <span>${icon} ${file.name}</span>
+                     </div>`;
+        });
+    } else {
+        html = '<p style="text-align:center;">Carpeta vacía.</p>';
+    }
+
+    // El Spreadsheet maestro siempre sale si estás en Raíz
+    if (_currentFolderId === 'Raíz') {
+        let maestroBtn = `<div class="file-item flex-row space-between align-center" style="background:rgba(0,0,0,0.3); border:1px solid var(--accent); padding:8px 12px; border-radius:6px; margin-bottom: 15px;">
+                            <span style="color:var(--accent)">📊 SPREADSHEET PRINCIPAL (BD)</span>
+                            <button onclick="window.openWebViewGlobal('https://docs.google.com/spreadsheets/d/${TARGET_SPREADSHEET_ID}/edit?usp=sharing', 'Base de Datos')" class="btn btn-primary" style="padding: 4px 8px; font-size:12px;">ABRIR TODO</button>
+                          </div>`;
+        html = maestroBtn + html;
+    }
+
+    listUIFiles.innerHTML = html;
+}
+
+function openDrivePreviewUrl(url, name) {
+    if (!url) return;
+    let previewUrl = url;
+    if (previewUrl.includes('/view')) previewUrl = previewUrl.replace('/view', '/preview');
+    if (previewUrl.includes('/edit')) previewUrl = previewUrl.replace('/edit', '/preview');
+    window.openWebViewGlobal(previewUrl, "Visualizador: " + name);
+}
+
+
 // Context Menu Logic
 let contextMenuTarget = null;
-function handleDriveContextMenu(e, id, name, url) {
+
+// Escuchamos click derecho globlal sobre el contenedor de archivos para subir
+document.getElementById('drive-files-list').addEventListener('contextmenu', (e) => {
+    // Si no clikea en un File-Item sino en el espacio vacío:
+    if (!e.target.closest('.file-item')) {
+        e.preventDefault();
+        // Mostrar menú contextual exclusivo de Crear/Subir
+        contextMenuTarget = null; // null means Area Vacía
+        let menu = document.getElementById('drive-context-menu');
+        menu.style.left = e.offsetX + 'px';
+        menu.style.top = e.offsetY + 'px';
+        menu.classList.remove('hidden');
+
+        // Hide file-specific options
+        document.getElementById('ctx-open').style.display = 'none';
+        document.getElementById('ctx-rename').style.display = 'none';
+        document.getElementById('ctx-delete').style.display = 'none';
+    }
+});
+
+function handleDriveContextMenu(e, id, name, url, isFolderNode) {
     e.preventDefault();
+    e.stopPropagation(); // Prevenir que el click derecho del container (arriba) absorba esto
     contextMenuTarget = { id, name, url };
     let menu = document.getElementById('drive-context-menu');
-    menu.style.left = e.offsetX + 'px';
-    menu.style.top = e.offsetY + 'px';
+
+    // Set absolute position relative to body so it doesn't get boxed in the scroll area
+    menu.style.position = 'fixed';
+    menu.style.left = e.clientX + 'px';
+    menu.style.top = e.clientY + 'px';
     menu.classList.remove('hidden');
+
+    // Show file-specific options
+    document.getElementById('ctx-open').style.display = isFolderNode ? 'none' : 'block';
+    document.getElementById('ctx-rename').style.display = 'block';
+    document.getElementById('ctx-delete').style.display = 'block';
 }
 
 document.addEventListener('click', (e) => {
@@ -2969,27 +3065,42 @@ document.addEventListener('click', (e) => {
 
 document.addEventListener('DOMContentLoaded', () => {
     let menu = document.getElementById('drive-context-menu');
+    let inputUpload = document.getElementById('input-upload-drive');
+
     if (menu) {
         document.getElementById('ctx-open').onclick = () => {
             menu.classList.add('hidden');
-            if (contextMenuTarget) {
-                // If it's a drive file, try to open in preview format inside the webview instead of new tab
-                let previewUrl = contextMenuTarget.url;
-                if (previewUrl.includes('/view')) previewUrl = previewUrl.replace('/view', '/preview');
-                if (previewUrl.includes('/edit')) previewUrl = previewUrl.replace('/edit', '/preview');
-                window.openWebViewGlobal(previewUrl, "Visualizador: " + contextMenuTarget.name);
+            if (contextMenuTarget && contextMenuTarget.url) {
+                openDrivePreviewUrl(contextMenuTarget.url, contextMenuTarget.name);
             }
         };
+
+        document.getElementById('ctx-upload').onclick = () => {
+            menu.classList.add('hidden');
+            if (inputUpload) inputUpload.click(); // Trigger native file dialog
+        };
+
+        if (inputUpload) {
+            inputUpload.addEventListener('change', () => {
+                if (inputUpload.files && inputUpload.files.length > 0) {
+                    uploadDriveFile();
+                }
+            });
+        }
+
         document.getElementById('ctx-new-folder').onclick = async () => {
             menu.classList.add('hidden');
             let fn = prompt("Nombre de la nueva carpeta:");
             if (!fn) return;
             try {
+                let btnRef = document.getElementById('btn-refresh-files');
+                if (btnRef) btnRef.innerHTML = "Creando...";
                 let res = await fetch(GAS_BACKEND_URL, {
                     method: 'POST',
                     body: JSON.stringify({ action: 'createFolder', folderName: fn })
                 });
                 let data = await res.json();
+                if (btnRef) btnRef.innerHTML = "↻ Cargar";
                 if (data.success) loadDriveFiles();
                 else alert("Error: " + data.error);
             } catch (e) { }
@@ -3000,11 +3111,14 @@ document.addEventListener('DOMContentLoaded', () => {
             let nn = prompt("Nuevo nombre para " + contextMenuTarget.name + ":", contextMenuTarget.name);
             if (!nn || nn === contextMenuTarget.name) return;
             try {
+                let btnRef = document.getElementById('btn-refresh-files');
+                if (btnRef) btnRef.innerHTML = "Renomb...";
                 let res = await fetch(GAS_BACKEND_URL, {
                     method: 'POST',
                     body: JSON.stringify({ action: 'renameFile', fileId: contextMenuTarget.id, newName: nn })
                 });
                 let data = await res.json();
+                if (btnRef) btnRef.innerHTML = "↻ Cargar";
                 if (data.success) loadDriveFiles();
                 else alert("Error: " + data.error);
             } catch (e) { }
@@ -3021,11 +3135,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function uploadDriveFile() {
     let input = document.getElementById('input-upload-drive');
-    if (!input.files || input.files.length === 0) return alert('Selecciona un archivo.');
+    if (!input.files || input.files.length === 0) return;
 
-    let btnUpload = document.getElementById('btn-upload-drive');
-    btnUpload.textContent = 'Subiendo...';
-    btnUpload.disabled = true;
+    let btnRefFiles = document.getElementById('btn-refresh-files');
+    if (btnRefFiles) {
+        btnRefFiles.textContent = 'Subiendo...';
+        btnRefFiles.disabled = true;
+    }
 
     try {
         let file = input.files[0];

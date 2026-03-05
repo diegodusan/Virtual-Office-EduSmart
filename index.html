@@ -820,27 +820,52 @@
                         <div class="flex-row space-between align-center">
                             <h2 style="font-size:24px; margin:0; text-shadow:1px 1px 2px black;">📁 Gestor de Archivos
                                 (Directorio Remoto)</h2>
-                            <button id="btn-refresh-files" class="btn btn-primary">↻ Cargar</button>
-                        </div>
-                        <!-- Formulario de Subida -->
-                        <div class="flex-row gap-md align-center"
-                            style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px;">
-                            <input type="file" id="input-upload-drive" class="custom-select" style="flex:1;">
-                            <button id="btn-upload-drive" class="btn btn-primary"
-                                style="background: #eab308; border-color:#eab308;">Subir Archivo</button>
+                            <button id="btn-refresh-files" class="btn btn-primary"
+                                style="background:#10b981; border-color:#10b981;">↻ Cargar</button>
                         </div>
 
-                        <div id="drive-files-list" class="flex-col gap-sm overflow-y flex-1"
-                            style="background: rgba(0,0,0,0.4); padding: 15px; border-radius: 8px; min-height: 200px; position:relative;">
-                            <p style="color:var(--text-secondary); text-align:center; padding-top: 20px;">Esperando
-                                conexión...</p>
+                        <!-- Hidden Upload Input -->
+                        <input type="file" id="input-upload-drive" class="hidden">
+
+                        <!-- 2-COLUMN LAYOUT -->
+                        <div class="flex-row flex-1 gap-md" style="min-height: 0;">
+
+                            <!-- LEFT PANE: FOLDERS -->
+                            <div class="glass-panel-strong flex-col"
+                                style="flex: 0 0 250px; padding: 10px; border-radius: 8px; overflow-y:auto; background: rgba(0,0,0,0.5);">
+                                <h3
+                                    style="margin-top:0; border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:5px; margin-bottom:10px; color:#facc15;">
+                                    Carpetas</h3>
+                                <div id="drive-folders-list" class="flex-col gap-sm flex-1">
+                                    <p style="color:var(--text-secondary); text-align:center; padding-top: 10px;">
+                                        Cargando...</p>
+                                </div>
+                            </div>
+
+                            <!-- RIGHT PANE: FILES -->
+                            <div class="glass-panel-strong flex-col"
+                                style="flex: 1; padding: 10px; border-radius: 8px; overflow-y:auto; background: rgba(0,0,0,0.3);">
+                                <h3 id="drive-files-header"
+                                    style="margin-top:0; border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:5px; margin-bottom:10px; color:#bfdbfe;">
+                                    Contenido de "Raíz"</h3>
+                                <div id="drive-files-list" class="flex-col gap-sm flex-1" style="position:relative;">
+                                    <p style="color:var(--text-secondary); text-align:center; padding-top: 20px;">
+                                        Esperando conexión...</p>
+                                </div>
+                            </div>
+
                         </div>
 
                         <!-- DRIVE CONTEXT MENU -->
                         <div id="drive-context-menu" class="context-menu glass-panel-strong hidden"
-                            style="position:absolute; width: 150px; flex-direction: column; padding: 5px; border-radius: 8px; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                            style="position:absolute; width: 160px; flex-direction: column; padding: 5px; border-radius: 8px; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
                             <button class="btn btn-ghost" id="ctx-open"
                                 style="text-align:left; width:100%; padding:8px;">Abrir Documento</button>
+                            <!-- NEW: Upload in Context Menu -->
+                            <button class="btn btn-ghost" id="ctx-upload"
+                                style="text-align:left; width:100%; padding:8px; color:#eab308;">Subir Archivo
+                                Aquí</button>
+                            <div style="height:1px; background:rgba(255,255,255,0.1); margin: 4px 0;"></div>
                             <button class="btn btn-ghost" id="ctx-new-folder"
                                 style="text-align:left; width:100%; padding:8px;">Crear Carpeta</button>
                             <button class="btn btn-ghost" id="ctx-rename"
