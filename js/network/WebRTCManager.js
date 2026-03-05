@@ -9,6 +9,15 @@ class WebRTCManager {
         // Distancia fisica para WebRTC
         this.PROXIMITY_RADIUS = 300;
         this.HYSTERESIS = 50;
+        this.globalAudioVolume = 1.0;
+    }
+
+    setGlobalVolume(vol) {
+        this.globalAudioVolume = vol;
+        for (let id in this.mediaElements) {
+            let el = this.mediaElements[id].querySelector('video, audio');
+            if (el) el.volume = vol;
+        }
     }
 
     async initLocalMedia() {
@@ -120,6 +129,11 @@ class WebRTCManager {
 
         container.appendChild(card);
         this.mediaElements[id] = card;
+
+        const videoEl = card.querySelector('video');
+        if (videoEl) {
+            videoEl.volume = this.globalAudioVolume;
+        }
 
         // Simular conexion
         const status = document.createElement("div");

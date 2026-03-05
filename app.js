@@ -1549,6 +1549,25 @@ class UIController {
             if (window._renderer) window._renderer.resize();
         });
 
+        // Audio Config Listeners
+        const bgmInput = document.getElementById('volume-bgm');
+        if (bgmInput) {
+            bgmInput.addEventListener('input', (e) => {
+                let bgm = document.getElementById('bgm-audio');
+                if (bgm) bgm.volume = parseFloat(e.target.value);
+            });
+        }
+
+        const voicesInput = document.getElementById('volume-voices');
+        if (voicesInput) {
+            voicesInput.addEventListener('input', (e) => {
+                let vol = parseFloat(e.target.value);
+                if (window._networkController && window._networkController.webrtcManager) {
+                    window._networkController.webrtcManager.setGlobalVolume(vol);
+                }
+            });
+        }
+
         const btnToggleBgm = document.getElementById('btn-toggle-bgm');
         if (btnToggleBgm) {
             btnToggleBgm.addEventListener('click', () => {
@@ -1590,6 +1609,8 @@ class UIController {
             document.getElementById('platform-frame').src = url;
             document.getElementById('webview-modal').classList.remove('hidden');
         };
+        window.openWebViewGlobal = openWebView;
+        window._switchViewGlobal = (id) => this.switchView(id);
 
         // --- PC OS DESKTOP LOGIC ---
         document.getElementById('btn-close-pc').addEventListener('click', () => {
@@ -1601,7 +1622,11 @@ class UIController {
             icon.addEventListener('click', (e) => {
                 let app = e.currentTarget.dataset.app;
                 if (app === 'archivos') {
-                    document.getElementById('fichero-modal').classList.remove('hidden');
+                    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                    let targetNav = document.querySelector('.nav-item[data-target="view-files"]');
+                    if (targetNav) targetNav.classList.add('active');
+                    this.switchView('view-files');
+                    document.getElementById('pc-os-modal').classList.add('hidden');
                 } else if (app === 'tareas') {
                     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
                     let targetNav = document.querySelector('.nav-item[data-target="view-tasks"]');
@@ -1638,6 +1663,53 @@ class UIController {
             }
         }, 1000);
         // ---------------------------
+
+        // Canvas NPC Mouse Click interaction
+        const canvas = document.getElementById('game-canvas');
+        if (canvas) {
+            canvas.addEventListener('click', (e) => {
+                if (!window.gameEngineInputEnabled) return;
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const clickX = (e.clientX - rect.left) * scaleX;
+                const clickY = (e.clientY - rect.top) * scaleY;
+
+                // Adjust click coordinates to World Space based on localPlayer's camera constraints
+                if (!window._renderer || !window._renderer.playerManager || !window._renderer.playerManager.localPlayer) return;
+
+                let p = window._renderer.playerManager.localPlayer;
+                let camX = p.x - canvas.width / 2;
+                let camY = p.y - canvas.height / 2;
+                camX = Math.max(0, Math.min(camX, 2000 - canvas.width));
+                camY = Math.max(0, Math.min(camY, 2000 - canvas.height));
+
+                const worldX = clickX + camX;
+                const worldY = clickY + camY;
+
+                // Check active scene components
+                if (window._renderer.sceneElements) {
+                    for (let npc of window._renderer.sceneElements) {
+                        if (npc.isAI) {
+                            // Check distance from click to NPC
+                            let dx = worldX - npc.x;
+                            let dy = worldY - npc.y;
+                            let distToClick = Math.sqrt(dx * dx + dy * dy);
+
+                            // Check distance from Player to NPC (must be close to interact)
+                            let pdx = p.x - npc.x;
+                            let pdy = p.y - npc.y;
+                            let distToPlayer = Math.sqrt(pdx * pdx + pdy * pdy);
+
+                            if (distToClick < 60 && distToPlayer < 120) {
+                                openAIChat(npc);
+                                return;
+                            }
+                        }
+                    }
+                }
+            });
+        }
 
         document.getElementById('btn-sys-admin').addEventListener('click', () => {
             openWebView("https://edusmart.dufyasesorias.com/dashboard", "Sistema Administrativo - EduSmart");
@@ -2476,6 +2548,15 @@ async function sendPromptToAI() {
     chatHistory.scrollTop = chatHistory.scrollHeight;
 }
 
+window.openAIChatGlobal = () => {
+    // Phone AI Assitant (Mocked NPC)
+    currentAINPC = { nickname: "EduAsist", role: "Asistente Virtual General de EduSmart (En teléfono)" };
+    document.getElementById('ai-chat-title').textContent = currentAINPC.nickname;
+    document.getElementById('ai-chat-history').innerHTML =
+        `<div style="text-align:center; color:#94a3b8; font-size:12px; margin-bottom:10px;">Chat iniciado con tu Asistente de Bolsillo</div>`;
+    document.getElementById('ai-chat-modal').classList.remove('hidden');
+    if (window.gameEngineInputEnabled !== undefined) window.gameEngineInputEnabled = false;
+};
 
 /* =====================================================================
    8. MAIN ENGINE BOOTSTRAP
@@ -2532,7 +2613,7 @@ setInterval(() => {
 const motionCanvas = document.createElement('canvas'); // hidden canvas
 const motionCtx = motionCanvas.getContext('2d', { willReadFrequently: true });
 let _lastImageData = null;
-let _afkTimer = 15; // Segundos permitidos sin movimiento
+let _afkTimer = 60; // Segundos permitidos sin movimiento
 let _isAFK = false;
 
 setInterval(() => {

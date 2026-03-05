@@ -110,8 +110,7 @@
                             style="cursor:pointer; transition:transform 0.2s;">
                             <div
                                 style="width:60px; height:60px; background:linear-gradient(135deg, #10b981, #059669); border-radius:16px; margin:0 auto; display:flex; align-items:center; justify-content:center; font-size:28px; box-shadow:0 4px 10px rgba(0,0,0,0.5);">
-                                💬
-                            </div>
+                                💬</div>
                             <span style="color:white; font-size:11px; margin-top:5px; display:block;">Mensajes</span>
                         </div>
 
@@ -120,10 +119,73 @@
                             style="cursor:pointer; transition:transform 0.2s;">
                             <div
                                 style="width:60px; height:60px; background:linear-gradient(135deg, #3b82f6, #2563eb); border-radius:16px; margin:0 auto; display:flex; align-items:center; justify-content:center; font-size:28px; box-shadow:0 4px 10px rgba(0,0,0,0.5);">
-                                📞
-                            </div>
+                                📞</div>
                             <span style="color:white; font-size:11px; margin-top:5px; display:block;">Llamadas</span>
                         </div>
+
+                        <!-- Calendario -->
+                        <div class="phone-app-icon" onclick="openPhoneApp('calendario')"
+                            style="cursor:pointer; transition:transform 0.2s;">
+                            <div
+                                style="width:60px; height:60px; background:linear-gradient(135deg, #f59e0b, #d97706); border-radius:16px; margin:0 auto; display:flex; align-items:center; justify-content:center; font-size:28px; box-shadow:0 4px 10px rgba(0,0,0,0.5);">
+                                📅</div>
+                            <span style="color:white; font-size:11px; margin-top:5px; display:block;">Calendario</span>
+                        </div>
+
+                        <!-- Tareas -->
+                        <div class="phone-app-icon" onclick="openPhoneApp('tareas')"
+                            style="cursor:pointer; transition:transform 0.2s;">
+                            <div
+                                style="width:60px; height:60px; background:linear-gradient(135deg, #ef4444, #b91c1c); border-radius:16px; margin:0 auto; display:flex; align-items:center; justify-content:center; font-size:28px; box-shadow:0 4px 10px rgba(0,0,0,0.5);">
+                                ✅</div>
+                            <span style="color:white; font-size:11px; margin-top:5px; display:block;">Tareas</span>
+                        </div>
+
+                        <!-- Archivos -->
+                        <div class="phone-app-icon" onclick="openPhoneApp('archivos')"
+                            style="cursor:pointer; transition:transform 0.2s;">
+                            <div
+                                style="width:60px; height:60px; background:linear-gradient(135deg, #8b5cf6, #6d28d9); border-radius:16px; margin:0 auto; display:flex; align-items:center; justify-content:center; font-size:28px; box-shadow:0 4px 10px rgba(0,0,0,0.5);">
+                                📁</div>
+                            <span style="color:white; font-size:11px; margin-top:5px; display:block;">Archivos</span>
+                        </div>
+
+                        <!-- Regreso Rápido -->
+                        <div class="phone-app-icon" onclick="openPhoneApp('return')"
+                            style="cursor:pointer; transition:transform 0.2s;">
+                            <div
+                                style="width:60px; height:60px; background:linear-gradient(135deg, #64748b, #475569); border-radius:16px; margin:0 auto; display:flex; align-items:center; justify-content:center; font-size:28px; box-shadow:0 4px 10px rgba(0,0,0,0.5);">
+                                🏠</div>
+                            <span style="color:white; font-size:11px; margin-top:5px; display:block;">Regresar</span>
+                        </div>
+
+                        <!-- EduAist CA -->
+                        <div class="phone-app-icon" onclick="openPhoneApp('ai')"
+                            style="cursor:pointer; transition:transform 0.2s;">
+                            <div
+                                style="width:60px; height:60px; background:linear-gradient(135deg, #06b6d4, #0891b2); border-radius:16px; margin:0 auto; display:flex; align-items:center; justify-content:center; font-size:28px; box-shadow:0 4px 10px rgba(0,0,0,0.5);">
+                                🤖</div>
+                            <span style="color:white; font-size:11px; margin-top:5px; display:block;">EduAsist</span>
+                        </div>
+
+                        <!-- Tutores -->
+                        <div class="phone-app-icon" onclick="openPhoneApp('tutores')"
+                            style="cursor:pointer; transition:transform 0.2s;">
+                            <div
+                                style="width:60px; height:60px; background:linear-gradient(135deg, #ec4899, #be185d); border-radius:16px; margin:0 auto; display:flex; align-items:center; justify-content:center; font-size:28px; box-shadow:0 4px 10px rgba(0,0,0,0.5);">
+                                👨‍🏫</div>
+                            <span style="color:white; font-size:11px; margin-top:5px; display:block;">Tutores</span>
+                        </div>
+
+                        <!-- Admin -->
+                        <div class="phone-app-icon" onclick="openPhoneApp('admin')"
+                            style="cursor:pointer; transition:transform 0.2s;">
+                            <div
+                                style="width:60px; height:60px; background:linear-gradient(135deg, #f97316, #c2410c); border-radius:16px; margin:0 auto; display:flex; align-items:center; justify-content:center; font-size:28px; box-shadow:0 4px 10px rgba(0,0,0,0.5);">
+                                ⚙️</div>
+                            <span style="color:white; font-size:11px; margin-top:5px; display:block;">Admin</span>
+                        </div>
+
                     </div>
                 </div>
 
@@ -192,6 +254,34 @@
                 }
 
                 function openPhoneApp(appId) {
+                    if (['return', 'calendario', 'tareas', 'archivos', 'ai', 'admin', 'tutores'].includes(appId)) {
+                        document.getElementById('phone-hud').classList.add('hidden');
+                        if (window.gameEngineInputEnabled !== undefined) window.gameEngineInputEnabled = true;
+
+                        if (appId === 'return') {
+                            window.focus();
+                        } else if (appId === 'calendario') {
+                            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                            let targetNav = document.querySelector('.nav-item[data-target="view-calendar"]');
+                            if (targetNav) targetNav.classList.add('active');
+                            if (window._switchViewGlobal) window._switchViewGlobal('view-calendar');
+                        } else if (appId === 'tareas') {
+                            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                            let targetNav = document.querySelector('.nav-item[data-target="view-tasks"]');
+                            if (targetNav) targetNav.classList.add('active');
+                            if (window._switchViewGlobal) window._switchViewGlobal('view-tasks');
+                        } else if (appId === 'archivos') {
+                            document.getElementById('fichero-modal').classList.remove('hidden');
+                        } else if (appId === 'ai') {
+                            if (window.openAIChatGlobal) window.openAIChatGlobal();
+                        } else if (appId === 'admin') {
+                            if (window.openWebViewGlobal) window.openWebViewGlobal("https://edusmart.dufyasesorias.com/dashboard", "Sistema Administrativo - EduSmart");
+                        } else if (appId === 'tutores') {
+                            if (window.openWebViewGlobal) window.openWebViewGlobal("https://tutor.dufyasesorias.com/dashboard", "Sistema Tutores - Dufy Asesorías");
+                        }
+                        return;
+                    }
+
                     document.getElementById('phone-view-home').style.display = 'none';
                     document.getElementById('phone-view-contacts').style.display = (appId === 'messages') ? 'flex' : 'none';
                     document.getElementById('phone-view-calls').style.display = (appId === 'calls') ? 'flex' : 'none';
@@ -381,11 +471,25 @@
                 </div>
             </section>
 
-            <!-- VIEW: CONFIGURACIÓN (Placeholder) -->
+            <!-- VIEW: CONFIGURACIÓN -->
             <section id="view-settings" class="view-section hidden">
-                <div class="placeholder-content glass-panel-strong">
-                    <h2>⚙️ Configuración del Sistema</h2>
-                    <p>Módulo en construcción. Ajustes de audio, video y cuenta.</p>
+                <div class="placeholder-content glass-panel-strong"
+                    style="max-width: 500px; margin: 0 auto; text-align: left; padding: 30px;">
+                    <h2 style="text-align: center; margin-bottom: 20px;">⚙️ Configuración del Sistema</h2>
+                    <div class="form-group">
+                        <label style="font-weight: bold; margin-bottom: 8px; display: block;">Volumen Música
+                            (Fondo):</label>
+                        <input type="range" id="volume-bgm"
+                            style="width: 100%; height: 6px; border-radius: 4px; outline: none; transition: .2s;"
+                            min="0" max="1" step="0.05" value="0.2">
+                    </div>
+                    <div class="form-group" style="margin-top: 25px;">
+                        <label style="font-weight: bold; margin-bottom: 8px; display: block;">Volumen Voces
+                            (Compañeros):</label>
+                        <input type="range" id="volume-voices"
+                            style="width: 100%; height: 6px; border-radius: 4px; outline: none; transition: .2s;"
+                            min="0" max="1" step="0.05" value="1.0">
+                    </div>
                 </div>
             </section>
 
