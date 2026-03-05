@@ -56,8 +56,69 @@
                         <span id="nav-role" class="role-badge">Sin Asignar</span>
                     </div>
                 </div>
-            </div>
         </nav>
+
+        <!-- REACTIONS OVERLAY (Hidden by default, triggered by 'T') -->
+        <div id="reactions-overlay" class="hidden"
+            style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(15,23,42,0.9); padding:20px; border-radius:12px; border:2px solid var(--accent); z-index:1000; flex-direction:row; gap:15px; box-shadow:0 0 20px rgba(0,0,0,0.8);">
+            <button class="btn reaction-btn"
+                style="font-size:32px; padding:10px; background:rgba(255,255,255,0.1); border:none;"
+                data-emoji="👍">👍</button>
+            <button class="btn reaction-btn"
+                style="font-size:32px; padding:10px; background:rgba(255,255,255,0.1); border:none;"
+                data-emoji="❤️">❤️</button>
+            <button class="btn reaction-btn"
+                style="font-size:32px; padding:10px; background:rgba(255,255,255,0.1); border:none;"
+                data-emoji="😂">😂</button>
+            <button class="btn reaction-btn"
+                style="font-size:32px; padding:10px; background:rgba(255,255,255,0.1); border:none;"
+                data-emoji="😭">😭</button>
+            <button class="btn reaction-btn"
+                style="font-size:32px; padding:10px; background:rgba(255,255,255,0.1); border:none;"
+                data-emoji="💡">💡</button>
+        </div>
+
+        <!-- PHONE HUD (Hidden by default, triggered by 'P') -->
+        <div id="phone-hud" class="hidden glass-panel-strong flex-col"
+            style="position:fixed; bottom:20px; right:20px; width:300px; height:500px; border-radius:30px; border:4px solid #1e293b; z-index:2000; box-shadow:0 10px 30px rgba(0,0,0,0.8); overflow:hidden; background:#0f172a;">
+            <!-- Notch / Top Area -->
+            <div
+                style="background:#020617; padding:10px; text-align:center; font-weight:bold; color:#f8fafc; font-size:14px; display:flex; justify-content:space-between;">
+                <span id="phone-time">12:00 PM</span>
+                <span>EduSmart📱</span>
+            </div>
+
+            <!-- View: Contacts List -->
+            <div id="phone-view-contacts" class="flex-1 flex-col" style="padding:15px; overflow-y:auto; display:flex;">
+                <h3 style="margin-bottom:15px; border-bottom:1px solid #334155; padding-bottom:5px;">Contactos en Línea
+                </h3>
+                <div id="phone-contacts-list" class="flex-col gap-sm">
+                    <!-- Contact items will be injected here via JS -->
+                    <p style="color:#94a3b8; font-size:14px; text-align:center;">Buscando usuarios...</p>
+                </div>
+            </div>
+
+            <!-- View: Direct Message Chat -->
+            <div id="phone-view-chat" class="flex-1 flex-col" style="display:none;">
+                <div style="background:#1e293b; padding:10px; display:flex; align-items:center; gap:10px;">
+                    <button id="btn-phone-back" class="btn" style="padding:4px 8px; font-size:12px;">◀</button>
+                    <b id="phone-chat-title" style="flex:1;">Usuario</b>
+                    <button id="btn-phone-call" class="btn btn-primary" style="padding:4px; font-size:14px;"
+                        title="Llamada Forzada">📞</button>
+                </div>
+                <div id="phone-chat-messages" class="flex-1"
+                    style="padding:15px; overflow-y:auto; background:#1e293b; font-size:14px; display:flex; flex-direction:column; gap:5px;">
+                    <!-- MSGs -->
+                </div>
+                <!-- Input Area -->
+                <div style="padding:10px; background:#020617; display:flex; gap:5px;">
+                    <input type="text" id="phone-chat-input" placeholder="Escribe o pega URL foto..."
+                        style="flex:1; padding:8px; border-radius:15px; border:none; outline:none; background:#334155; color:white; font-size:13px;">
+                    <button id="btn-phone-send" class="btn btn-primary"
+                        style="border-radius:50%; width:35px; height:35px; padding:0; display:flex; align-items:center; justify-content:center;">➤</button>
+                </div>
+            </div>
+        </div>
 
         <!-- MAIN CONTENT AREA -->
         <main id="main-content">
@@ -81,9 +142,17 @@
                     <div class="status-row"><span>🎮 FPS:</span> <b id="fps-counter">0</b></div>
                     <div class="status-row"><span>🌐 Modo:</span> <b id="game-mode"
                             style="color:var(--success)">DEMO</b></div>
-                    <button id="btn-fast-travel" class="btn btn-primary"
-                        style="margin-top: 8px; font-size: 13px; padding: 6px;">🌍 Viaje Rápido</button>
+                    <div class="flex-row space-between align-center" style="margin-top: 8px;">
+                        <button id="btn-fast-travel" class="btn btn-primary" style="font-size: 13px; padding: 6px;">🌍
+                            Viaje Rápido</button>
+                        <button id="btn-toggle-bgm" class="btn" style="padding: 4px 8px; font-size:16px;"
+                            title="Silenciar Música">🔊</button>
+                    </div>
                 </div>
+
+                <!-- BGM Audio -->
+                <audio id="bgm-audio" loop
+                    src="https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=lofi-study-112191.mp3"></audio>
 
                 <!-- UI Overlay: Presentation Viewer (TOP CENTER) -->
                 <div id="presentation-viewer" class="overlay hidden flex-col glass-panel-strong">

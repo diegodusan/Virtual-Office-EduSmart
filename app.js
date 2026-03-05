@@ -34,6 +34,10 @@ class InputManager {
     consumeWork() { this.keys["KeyF"] = false; }
     isPlatform() { return this.isDown("KeyG"); }
     consumePlatform() { this.keys["KeyG"] = false; }
+    isReaction() { return this.isDown("KeyT"); }
+    consumeReaction() { this.keys["KeyT"] = false; }
+    isPhone() { return this.isDown("KeyP"); }
+    consumePhone() { this.keys["KeyP"] = false; }
 }
 
 /* =====================================================================
@@ -1104,6 +1108,28 @@ class BasePlayer {
 
         const bx = this.x - boxW / 2; const by = this.y - 65;
 
+        // Bubble Emoji Reaction Rendering
+        if (this.activeReaction) {
+            let ry = by - 36; // Hover above the nameplate
+            ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+            ctx.strokeStyle = "#cbd5e1";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(this.x, ry, 16, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke();
+
+            // Little tail pointing down
+            ctx.beginPath();
+            ctx.moveTo(this.x - 4, ry + 14);
+            ctx.lineTo(this.x, ry + 22);
+            ctx.lineTo(this.x + 4, ry + 14);
+            ctx.fill(); ctx.stroke();
+
+            ctx.font = "20px Inter"; // Emoji size
+            ctx.fillStyle = "#000"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText(this.activeReaction, this.x, ry + 2);
+        }
+
         ctx.fillStyle = "rgba(15,23,42,0.85)";
         ctx.strokeStyle = (this.role === 'gerente') ? "#eab308" : "#475569";
         ctx.lineWidth = (this.role === 'gerente') ? 2 : 1;
@@ -1475,8 +1501,32 @@ class UIController {
 
             document.getElementById('profile-modal').classList.add('hidden');
             window.dispatchEvent(new Event("init-engine"));
-            _renderer.resize();
+
+            // Start Background Music on interaction
+            let bgm = document.getElementById('bgm-audio');
+            if (bgm) {
+                bgm.volume = 0.2; // Soft volume
+                bgm.play().catch(e => console.log("Auto-play prevented"));
+            }
+
+            if (window._renderer) window._renderer.resize();
         });
+
+        const btnToggleBgm = document.getElementById('btn-toggle-bgm');
+        if (btnToggleBgm) {
+            btnToggleBgm.addEventListener('click', () => {
+                let bgm = document.getElementById('bgm-audio');
+                if (!bgm) return;
+                if (bgm.paused) {
+                    bgm.play();
+                    btnToggleBgm.textContent = "🔊";
+                } else {
+                    bgm.pause();
+                    btnToggleBgm.textContent = "🔇";
+                }
+                window.focus();
+            });
+        }
 
         document.querySelectorAll('.nav-item').forEach(item => {
             item.addEventListener('click', (e) => {
@@ -1835,6 +1885,56 @@ class NetworkController {
             document.getElementById('chat-messages').scrollTop = 9999;
         });
 
+        this.socket.on('playerReacted', (data) => {
+            let rp = this.remotePlayers[data.id];
+            if (rp) {
+                rp.activeReaction = data.emoji;
+                if (rp.reactionTimeout) clearTimeout(rp.reactionTimeout);
+                rp.reactionTimeout = setTimeout(() => { rp.activeReaction = null; }, 3000);
+            }
+        });
+
+        // REACTION UI LOGIC (Key T)
+        const reactionsOverlay = document.getElementById('reactions-overlay');
+        if (reactionsOverlay) {
+            document.querySelectorAll('.reaction-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    let emoji = e.currentTarget.dataset.emoji;
+                    // Activar localmente
+                    this.p.activeReaction = emoji;
+                    if (this.p.reactionTimeout) clearTimeout(this.p.reactionTimeout);
+                    this.p.reactionTimeout = setTimeout(() => { this.p.activeReaction = null; }, 3000);
+                    // Ocultar Overlay
+                    reactionsOverlay.classList.add('hidden');
+                    window.focus();
+                    // Emitir a los demás
+                    if (this.socket.connected) this.socket.emit('playerReacted', { emoji: emoji });
+                });
+            });
+
+            // InputManager is listening for T. We check it inside the main Engine Loop, BUT
+            // here we can also bind a standalone DOM listener to avoid interfering with Engine tick rates.
+            window.addEventListener("keydown", (e) => {
+                if (window.gameEngineInputEnabled && (e.code === "KeyT" || e.key === "t" || e.key === "T")) {
+                    if (reactionsOverlay.classList.contains('hidden')) {
+                        reactionsOverlay.classList.remove('hidden');
+                        window.gameEngineInputEnabled = false; // block movement
+                    } else {
+                        reactionsOverlay.classList.add('hidden');
+                        window.gameEngineInputEnabled = true;
+                    }
+                }
+            });
+
+            // To unlock movement if clicked outside
+            document.addEventListener('click', (e) => {
+                if (!reactionsOverlay.classList.contains('hidden') && !e.target.closest('#reactions-overlay')) {
+                    reactionsOverlay.classList.add('hidden');
+                    window.gameEngineInputEnabled = true;
+                }
+            });
+        }
+
         // Sincronización de Presentaciones
         this.socket.on('startPresentation', (data) => {
             // Verificar si el jugador actual está en la misma habitación que el presentador
@@ -1873,7 +1973,124 @@ class NetworkController {
             }
         });
 
-        // Interceptar SendChat de UI
+        // PHONE HUD LOGIC (Key P)
+        const phoneHud = document.getElementById('phone-hud');
+        if (phoneHud) {
+            this.activeChatUserId = null;
+
+            // DOM Key listener
+            window.addEventListener("keydown", (e) => {
+                if (window.gameEngineInputEnabled && (e.code === "KeyP" || e.key === "p" || e.key === "P")) {
+                    if (phoneHud.classList.contains('hidden')) {
+                        phoneHud.classList.remove('hidden');
+                        this.renderPhoneContacts();
+                    } else {
+                        phoneHud.classList.add('hidden');
+                        document.getElementById('phone-view-contacts').style.display = 'flex';
+                        document.getElementById('phone-view-chat').style.display = 'none';
+                        this.activeChatUserId = null;
+
+                        // Force game focus so movement works
+                        window.focus();
+                        window.gameEngineInputEnabled = true;
+                    }
+                }
+            });
+
+            // Update Time
+            setInterval(() => {
+                let d = new Date();
+                let timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                let tE = document.getElementById('phone-time');
+                if (tE) tE.textContent = timeStr;
+            }, 10000);
+
+            // Bind Views
+            document.getElementById('btn-phone-back')?.addEventListener('click', () => {
+                document.getElementById('phone-view-contacts').style.display = 'flex';
+                document.getElementById('phone-view-chat').style.display = 'none';
+                this.activeChatUserId = null;
+            });
+
+            // Send DM
+            const sendDM = () => {
+                let ipt = document.getElementById('phone-chat-input');
+                let txt = ipt.value.trim();
+                if (!txt || !this.activeChatUserId) return;
+
+                // Print local message
+                this.printPhoneMsg("Tú", txt, true);
+
+                // Send to socket
+                if (this.socket.connected) {
+                    this.socket.emit('privateMessage', { targetId: this.activeChatUserId, text: txt, fromNick: this.p.nickname });
+                }
+                ipt.value = '';
+            };
+            document.getElementById('btn-phone-send')?.addEventListener('click', sendDM);
+            document.getElementById('phone-chat-input')?.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') sendDM();
+            });
+
+            // Disable Engine input while typing in Phone
+            let inputDom = document.getElementById('phone-chat-input');
+            if (inputDom) {
+                inputDom.addEventListener('focus', () => window.gameEngineInputEnabled = false);
+                inputDom.addEventListener('blur', () => window.gameEngineInputEnabled = true);
+            }
+
+            // Call button
+            document.getElementById('btn-phone-call')?.addEventListener('click', () => {
+                if (!this.activeChatUserId) return;
+                let remotePeer = this.activeChatUserId; // Usually the socket ID is the peer ID in this setup
+                if (window.localStream && this.peer && remotePeer) {
+                    // Start call with audio and video
+                    this.printPhoneMsg("Sistema", "Iniciando llamada remota...", false);
+
+                    // Actually attempt to call
+                    const call = this.peer.call(remotePeer, window.localStream);
+                    if (call) {
+                        call.on('stream', (remoteStream) => {
+                            this.addRemoteVideoStream(remotePeer, remoteStream);
+                        });
+                        call.on('close', () => {
+                            this.removeRemoteVideoStream(remotePeer);
+                        });
+                        call.on('error', (err) => {
+                            console.log("Phone Call error:", err);
+                            this.removeRemoteVideoStream(remotePeer);
+                            this.printPhoneMsg("Sistema", "Error en llamada.", false);
+                        });
+                        this.activeCalls[remotePeer] = call;
+                    }
+                } else {
+                    this.printPhoneMsg("Sistema", "No tienes permisos de cámara.", false);
+                }
+            });
+
+            // Listen for Incoming DMs
+            this.socket.on('privateMessage', (data) => {
+                // If phone is hidden, show a small visual hint or just un-hide it
+                if (phoneHud.classList.contains('hidden')) {
+                    phoneHud.classList.remove('hidden');
+                }
+
+                // If we are currently chatting with this person
+                if (this.activeChatUserId === data.fromId) {
+                    this.printPhoneMsg(data.fromNick, data.text, false);
+                } else {
+                    // Notification on the contact list or auto-switch
+                    this.activeChatUserId = data.fromId;
+                    document.getElementById('phone-chat-title').textContent = data.fromNick;
+                    document.getElementById('phone-view-contacts').style.display = 'none';
+                    document.getElementById('phone-view-chat').style.display = 'flex';
+                    document.getElementById('phone-chat-messages').innerHTML = ''; // clear history for now
+                    this.printPhoneMsg(data.fromNick, data.text, false);
+                }
+            });
+        }
+
+        // Interceptar SendChat de UI (Global)
         const oldSendChat = this.ui.sendChat.bind(this.ui);
         this.ui.sendChat = () => {
             let ipt = document.getElementById('chat-input');
@@ -1881,6 +2098,77 @@ class NetworkController {
             this.socket.emit('chatMessage', { nick: this.p.nickname, text: ipt.value, roomName: this.map.getRoomAt(this.p.x, this.p.y)?.name || 'Global' });
             ipt.value = '';
         }
+    }
+
+    // PHONE HELPERS
+    renderPhoneContacts() {
+        let listContainer = document.getElementById('phone-contacts-list');
+        if (!listContainer) return;
+
+        let remotes = Object.values(this.remotePlayers);
+        if (remotes.length === 0) {
+            listContainer.innerHTML = '<p style="color:#94a3b8; font-size:14px; text-align:center; padding: 20px 0;">No hay nadie más en línea.</p>';
+            return;
+        }
+
+        let html = '';
+        remotes.forEach(r => {
+            // Check proximity
+            let myRoom = this.map.getRoomAt(this.p.x, this.p.y);
+            let rpRoom = this.map.getRoomAt(r.x, r.y);
+            let distStr = "";
+            let locationStr = rpRoom ? rpRoom.name : "Jardín Exterior";
+
+            html += `<div class="flex-row space-between align-center" style="background:#1e293b; padding:10px; border-radius:10px; cursor:pointer;" onclick="window._openPhoneChat('${r.id}', '${r.nickname}')">
+                <div class="flex-row gap-sm align-center">
+                    <div style="width:10px; height:10px; background:#10b981; border-radius:50%;"></div>
+                    <div class="flex-col">
+                        <b style="font-size:14px;">${r.nickname}</b>
+                        <span style="font-size:11px; color:#94a3b8;">${locationStr}</span>
+                    </div>
+                </div>
+                <button class="btn btn-primary" style="padding:4px 8px; font-size:12px;">💬</button>
+            </div>`;
+        });
+
+        listContainer.innerHTML = html;
+
+        // Define global helper to bind clicks
+        window._openPhoneChat = (id, nick) => {
+            this.activeChatUserId = id;
+            document.getElementById('phone-chat-title').textContent = nick;
+            document.getElementById('phone-view-contacts').style.display = 'none';
+            document.getElementById('phone-view-chat').style.display = 'flex';
+            document.getElementById('phone-chat-messages').innerHTML = ''; // clear session
+        };
+    }
+
+    printPhoneMsg(author, text, isMe) {
+        let chatContainer = document.getElementById('phone-chat-messages');
+        if (!chatContainer) return;
+
+        let align = isMe ? "flex-end" : "flex-start";
+        let bg = isMe ? "#3b82f6" : "#334155";
+        let rx = isMe ? "12px 12px 0px 12px" : "12px 12px 12px 0px";
+
+        // Check if text is an image URL
+        let contentHtml = text;
+        if (text.match(/\.(jpeg|jpg|gif|png|webp|bmp)$/i) || text.startsWith("data:image/")) {
+            contentHtml = `<img src="${text}" style="max-width:100%; border-radius:8px;" />`;
+        }
+
+        let msgHtml = `
+            <div style="display:flex; flex-direction:column; align-items:${align}; margin-bottom:5px;">
+                <span style="font-size:11px; color:#94a3b8;">${author}</span>
+                <div style="background:${bg}; padding:8px 12px; border-radius:${rx}; max-width:85%; word-wrap:break-word;">
+                    ${contentHtml}
+                </div>
+            </div>
+        `;
+        let div = document.createElement('div');
+        div.innerHTML = msgHtml;
+        chatContainer.appendChild(div);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
     }
 
     addRemotePlayer(data) {
