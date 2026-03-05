@@ -80,44 +80,125 @@
 
         <!-- PHONE HUD (Hidden by default, triggered by 'P') -->
         <div id="phone-hud" class="hidden glass-panel-strong flex-col"
-            style="position:fixed; bottom:20px; right:20px; width:300px; height:500px; border-radius:30px; border:4px solid #1e293b; z-index:2000; box-shadow:0 10px 30px rgba(0,0,0,0.8); overflow:hidden; background:#0f172a;">
+            style="position:fixed; bottom:20px; right:20px; width:300px; height:500px; border-radius:30px; border:6px solid #1e293b; z-index:2000; box-shadow:0 10px 30px rgba(0,0,0,0.8); overflow:hidden; background:url('https://images.unsplash.com/photo-1550684848-fac1c5b4e853') center/cover;">
+
+            <!-- Filter layer for background readability -->
+            <div style="position:absolute; inset:0; background:rgba(15,23,42,0.85); pointer-events:none;"></div>
+
             <!-- Notch / Top Area -->
             <div
-                style="background:#020617; padding:10px; text-align:center; font-weight:bold; color:#f8fafc; font-size:14px; display:flex; justify-content:space-between;">
-                <span id="phone-time">12:00 PM</span>
-                <span>EduSmart📱</span>
+                style="position:relative; z-index:1; background:rgba(2,6,23,0.6); padding:8px 15px; text-align:center; font-weight:bold; color:#f8fafc; font-size:12px; display:flex; justify-content:space-between; align-items:center;">
+                <span id="phone-time">12:00</span>
+                <div style="width:60px; height:20px; background:#000; border-radius:10px; margin: 0 auto;"></div>
+                <!-- The Dynamic Island/Notch -->
+                <span>🔋 100%</span>
             </div>
 
-            <!-- View: Contacts List -->
-            <div id="phone-view-contacts" class="flex-1 flex-col" style="padding:15px; overflow-y:auto; display:flex;">
-                <h3 style="margin-bottom:15px; border-bottom:1px solid #334155; padding-bottom:5px;">Contactos en Línea
-                </h3>
-                <div id="phone-contacts-list" class="flex-col gap-sm">
-                    <!-- Contact items will be injected here via JS -->
-                    <p style="color:#94a3b8; font-size:14px; text-align:center;">Buscando usuarios...</p>
+            <!-- MAIN CONTENT AREA OF PHONE -->
+            <div id="phone-content" class="flex-1 flex-col" style="position:relative; z-index:1; overflow:hidden;">
+
+                <!-- HOME SCREEN -->
+                <div id="phone-view-home" class="flex-1 flex-col" style="padding:20px; display:flex;">
+                    <h3
+                        style="color:white; margin-bottom: 20px; font-size: 20px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);">
+                        Inicio</h3>
+
+                    <!-- App Grid -->
+                    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 15px; text-align: center;">
+                        <!-- Messages App -->
+                        <div class="phone-app-icon" onclick="openPhoneApp('messages')"
+                            style="cursor:pointer; transition:transform 0.2s;">
+                            <div
+                                style="width:60px; height:60px; background:linear-gradient(135deg, #10b981, #059669); border-radius:16px; margin:0 auto; display:flex; align-items:center; justify-content:center; font-size:28px; box-shadow:0 4px 10px rgba(0,0,0,0.5);">
+                                💬
+                            </div>
+                            <span style="color:white; font-size:11px; margin-top:5px; display:block;">Mensajes</span>
+                        </div>
+
+                        <!-- Calls App -->
+                        <div class="phone-app-icon" onclick="openPhoneApp('calls')"
+                            style="cursor:pointer; transition:transform 0.2s;">
+                            <div
+                                style="width:60px; height:60px; background:linear-gradient(135deg, #3b82f6, #2563eb); border-radius:16px; margin:0 auto; display:flex; align-items:center; justify-content:center; font-size:28px; box-shadow:0 4px 10px rgba(0,0,0,0.5);">
+                                📞
+                            </div>
+                            <span style="color:white; font-size:11px; margin-top:5px; display:block;">Llamadas</span>
+                        </div>
+                    </div>
                 </div>
+
+                <!-- VIEW: Messages/Contacts -->
+                <div id="phone-view-contacts" class="flex-1 flex-col" style="background:#0f172a; display:none;">
+                    <div
+                        style="padding:15px; border-bottom:1px solid #1e293b; display:flex; align-items:center; gap:10px;">
+                        <h3 style="flex:1;">Chats (En Línea)</h3>
+                    </div>
+                    <div id="phone-contacts-list" class="flex-col gap-sm"
+                        style="padding:15px; overflow-y:auto; flex:1;">
+                        <!-- Contact items will be injected here via JS -->
+                        <p style="color:#94a3b8; font-size:14px; text-align:center;">Buscando usuarios...</p>
+                    </div>
+                </div>
+
+                <!-- VIEW: Calls -->
+                <div id="phone-view-calls" class="flex-1 flex-col" style="background:#0f172a; display:none;">
+                    <div
+                        style="padding:15px; border-bottom:1px solid #1e293b; display:flex; align-items:center; gap:10px;">
+                        <h3 style="flex:1;">Llamar</h3>
+                    </div>
+                    <div id="phone-calls-list" class="flex-col gap-sm" style="padding:15px; overflow-y:auto; flex:1;">
+                        <!-- Call items will be injected here via JS -->
+                    </div>
+                </div>
+
+                <!-- VIEW: Direct Message Chat -->
+                <div id="phone-view-chat" class="flex-1 flex-col" style="background:#0f172a; display:none;">
+                    <div style="background:#1e293b; padding:10px; display:flex; align-items:center; gap:10px;">
+                        <button id="btn-phone-back" onclick="openPhoneApp('messages')" class="btn"
+                            style="padding:4px 8px; font-size:12px;">◀</button>
+                        <b id="phone-chat-title" style="flex:1; font-size:14px;">Usuario</b>
+                    </div>
+                    <div id="phone-chat-messages" class="flex-1"
+                        style="padding:15px; overflow-y:auto; font-size:14px; display:flex; flex-direction:column; gap:8px;">
+                        <!-- MSGs -->
+                    </div>
+                    <!-- Input Area -->
+                    <div style="padding:10px; background:#020617; display:flex; gap:5px;">
+                        <input type="text" id="phone-chat-input" placeholder="Aa"
+                            style="flex:1; padding:10px 15px; border-radius:20px; border:none; outline:none; background:#334155; color:white; font-size:13px;">
+                        <button id="btn-phone-send" class="btn btn-primary"
+                            style="border-radius:50%; width:38px; height:38px; padding:0; display:flex; align-items:center; justify-content:center;">➤</button>
+                    </div>
+                </div>
+
             </div>
 
-            <!-- View: Direct Message Chat -->
-            <div id="phone-view-chat" class="flex-1 flex-col" style="display:none;">
-                <div style="background:#1e293b; padding:10px; display:flex; align-items:center; gap:10px;">
-                    <button id="btn-phone-back" class="btn" style="padding:4px 8px; font-size:12px;">◀</button>
-                    <b id="phone-chat-title" style="flex:1;">Usuario</b>
-                    <button id="btn-phone-call" class="btn btn-primary" style="padding:4px; font-size:14px;"
-                        title="Llamada Forzada">📞</button>
-                </div>
-                <div id="phone-chat-messages" class="flex-1"
-                    style="padding:15px; overflow-y:auto; background:#1e293b; font-size:14px; display:flex; flex-direction:column; gap:5px;">
-                    <!-- MSGs -->
-                </div>
-                <!-- Input Area -->
-                <div style="padding:10px; background:#020617; display:flex; gap:5px;">
-                    <input type="text" id="phone-chat-input" placeholder="Escribe o pega URL foto..."
-                        style="flex:1; padding:8px; border-radius:15px; border:none; outline:none; background:#334155; color:white; font-size:13px;">
-                    <button id="btn-phone-send" class="btn btn-primary"
-                        style="border-radius:50%; width:35px; height:35px; padding:0; display:flex; align-items:center; justify-content:center;">➤</button>
-                </div>
+            <!-- Home Button (Dock) -->
+            <div
+                style="position:relative; z-index:1; padding: 10px; display:flex; justify-content:center; background:rgba(2,6,23,0.8);">
+                <div onclick="openPhoneHome()"
+                    style="width:100px; height:5px; background:rgba(255,255,255,0.7); border-radius:5px; cursor:pointer;"
+                    title="Inicio"></div>
             </div>
+
+            <script>
+                // Front-end UI functions for the phone specifically (Not in Engine loop for simplicity)
+                function openPhoneHome() {
+                    document.getElementById('phone-view-home').style.display = 'flex';
+                    document.getElementById('phone-view-contacts').style.display = 'none';
+                    document.getElementById('phone-view-calls').style.display = 'none';
+                    document.getElementById('phone-view-chat').style.display = 'none';
+                    if (window._phoneCloseChatSession) window._phoneCloseChatSession();
+                }
+
+                function openPhoneApp(appId) {
+                    document.getElementById('phone-view-home').style.display = 'none';
+                    document.getElementById('phone-view-contacts').style.display = (appId === 'messages') ? 'flex' : 'none';
+                    document.getElementById('phone-view-calls').style.display = (appId === 'calls') ? 'flex' : 'none';
+                    document.getElementById('phone-view-chat').style.display = 'none';
+                    if (window._phoneRenderContacts) window._phoneRenderContacts();
+                }
+            </script>
         </div>
 
         <!-- MAIN CONTENT AREA -->
@@ -153,6 +234,39 @@
                 <!-- BGM Audio -->
                 <audio id="bgm-audio" loop
                     src="https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=lofi-study-112191.mp3"></audio>
+
+                <!-- AI CHAT MODAL (Hidden by default) -->
+                <div id="ai-chat-modal" class="hidden glass-panel-strong flex-col"
+                    style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:400px; height:500px; border-radius:12px; border:2px solid var(--accent); z-index:3000; box-shadow:0 10px 30px rgba(0,0,0,0.8); background:#0f172a;">
+                    <div class="flex-row space-between align-center"
+                        style="padding:15px; border-bottom:1px solid #1e293b; background:rgba(2,6,23,0.5);">
+                        <div class="flex-row gap-sm align-center">
+                            <span style="font-size:24px;">🤖</span>
+                            <div>
+                                <h3 id="ai-chat-name" style="margin:0;">Viri (Recepcionista)</h3>
+                                <span style="font-size:11px; color:#10b981;">En línea</span>
+                            </div>
+                        </div>
+                        <button id="btn-close-ai" class="btn btn-danger" style="padding:4px 8px;">✕</button>
+                    </div>
+
+                    <div id="ai-chat-history" class="flex-1"
+                        style="padding:15px; overflow-y:auto; display:flex; flex-direction:column; gap:10px; font-size:14px;">
+                        <!-- MSG TEMPLATE -->
+                        <div
+                            style="background:#1e293b; padding:10px; border-radius:10px 10px 10px 0; align-self:flex-start; max-width:85%;">
+                            <span style="color:var(--accent); font-weight:bold; font-size:12px;">Viri</span><br>
+                            ¡Hola! ¿En qué te puedo ayudar hoy?
+                        </div>
+                    </div>
+
+                    <div
+                        style="padding:15px; border-top:1px solid #1e293b; background:rgba(2,6,23,0.5); display:flex; gap:10px;">
+                        <input type="text" id="ai-chat-input" placeholder="Pregúntale algo..."
+                            style="flex:1; padding:10px; border-radius:8px; border:1px solid #334155; outline:none; background:#1e293b; color:white;">
+                        <button id="btn-ai-send" class="btn btn-primary" style="padding:0 15px;">Enviar</button>
+                    </div>
+                </div>
 
                 <!-- UI Overlay: Presentation Viewer (TOP CENTER) -->
                 <div id="presentation-viewer" class="overlay hidden flex-col glass-panel-strong">

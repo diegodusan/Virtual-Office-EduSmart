@@ -1102,32 +1102,52 @@ class BasePlayer {
     drawLabel(ctx) {
         ctx.font = "bold 13px Inter";
         let subfix = this.isWorking ? " (Trabajando)" : (this.isLocal ? " (Tú)" : "");
+        if (this.isAbsent) subfix = " (Ausente)";
         let vipStar = (this.role === 'gerente') ? "⭐ " : "";
         const textW = ctx.measureText(vipStar + this.nickname + subfix).width;
         let boxW = textW + 36;
 
         const bx = this.x - boxW / 2; const by = this.y - 65;
 
-        // Bubble Emoji Reaction Rendering
+        // Bubble Emoji Reaction Rendering (Animated)
         if (this.activeReaction) {
-            let ry = by - 36; // Hover above the nameplate
-            ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-            ctx.strokeStyle = "#cbd5e1";
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(this.x, ry, 16, 0, Math.PI * 2);
-            ctx.fill(); ctx.stroke();
+            // Calculate progress (0 to 1 over 3 seconds)
+            let elapsed = performance.now() - this.reactionStartTime;
+            if (elapsed < 3000) {
+                let progress = elapsed / 3000;
+                let offsetY = progress * 40; // Float up 40px
+                let alpha = 1.0;
+                if (progress > 0.7) alpha = 1 - ((progress - 0.7) / 0.3); // Fade out last 30%
 
-            // Little tail pointing down
-            ctx.beginPath();
-            ctx.moveTo(this.x - 4, ry + 14);
-            ctx.lineTo(this.x, ry + 22);
-            ctx.lineTo(this.x + 4, ry + 14);
-            ctx.fill(); ctx.stroke();
+                let ry = by - 36 - offsetY;
 
-            ctx.font = "20px Inter"; // Emoji size
-            ctx.fillStyle = "#000"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.fillText(this.activeReaction, this.x, ry + 2);
+                ctx.save();
+                ctx.globalAlpha = alpha;
+
+                // Bubble
+                ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+                ctx.strokeStyle = "#cbd5e1";
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(this.x, ry, 16, 0, Math.PI * 2);
+                ctx.fill(); ctx.stroke();
+
+                // Tail
+                ctx.beginPath();
+                ctx.moveTo(this.x - 4, ry + 14);
+                ctx.lineTo(this.x, ry + 22);
+                ctx.lineTo(this.x + 4, ry + 14);
+                ctx.fill(); ctx.stroke();
+
+                // Emoji
+                ctx.font = "20px Inter";
+                ctx.fillStyle = "#000"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                ctx.fillText(this.activeReaction, this.x, ry + 2);
+
+                ctx.restore();
+            } else {
+                this.activeReaction = null;
+            }
         }
 
         ctx.fillStyle = "rgba(15,23,42,0.85)";
@@ -1256,15 +1276,17 @@ class RemotePlayer extends BasePlayer {
         this.targetY = data.y;
         this.frame = data.frame;
         this.isWorking = data.isWorking;
+        this.isAbsent = data.isAbsent;
         this.updateTime = performance.now();
     }
 }
 
 class NPC extends BasePlayer {
-    constructor(id, x, y, name, role) {
+    constructor(id, x, y, name, role, isAI = false) {
         super(id, x, y, false);
         this.nickname = name;
         this.role = role;
+        this.isAI = isAI;
         this.props = { skin: "#f1c27d", hair: "#fbbf24", shirt: "#ec4899", pants: "#000", glasses: false, hat: false };
         this.showMsg = false;
         this.msgs = [
@@ -1281,9 +1303,9 @@ class NPC extends BasePlayer {
         let dist = Math.sqrt(dx * dx + dy * dy);
 
         let wasShowing = this.showMsg;
-        this.showMsg = (dist < 150);
+        this.showMsg = (dist < 100); // 100px range for interaction
 
-        if (this.showMsg) {
+        if (this.showMsg && !this.isAI) {
             if (!wasShowing) {
                 // When player enters range, show a new random message
                 this.msgIdx = Math.floor(Math.random() * this.msgs.length);
@@ -1295,24 +1317,39 @@ class NPC extends BasePlayer {
             }
         }
 
+        // Trigger AI Modal on E press
+        if (this.showMsg && this.isAI && window._inputEngineInstance) {
+            if (window._inputEngineInstance.isInteract()) {
+                window._inputEngineInstance.consumeInteract();
+                openAIChat(this);
+            }
+        }
+
         this.sortY = this.y + this.h / 2;
     }
     render(ctx) {
         super.render(ctx);
         if (this.showMsg) {
-            let msg = this.msgs[this.msgIdx];
             ctx.font = "bold 13px Inter";
+
+            let msg = this.isAI ? "Presiona [E] para Hablar" : this.msgs[this.msgIdx];
             let tw = ctx.measureText(msg).width;
             let bx = this.x - tw / 2; let by = this.y - 80;
 
-            ctx.fillStyle = "#fff"; ctx.strokeStyle = "#0f172a"; ctx.lineWidth = 2;
+            let bgColor = this.isAI ? "#3b82f6" : "#fff";
+            let fgColor = this.isAI ? "#fff" : "#0f172a";
+
+            ctx.fillStyle = bgColor; ctx.strokeStyle = "#0f172a"; ctx.lineWidth = this.isAI ? 0 : 2;
+
             ctx.beginPath(); ctx.roundRect(bx - 10, by - 12, tw + 20, 24, 8);
-            ctx.fill(); ctx.stroke();
+            ctx.fill();
+            if (!this.isAI) ctx.stroke();
 
-            ctx.beginPath(); ctx.moveTo(this.x - 6, by + 12); ctx.lineTo(this.x, by + 20); ctx.lineTo(this.x + 6, by + 12); ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(this.x - 6, by + 12); ctx.lineTo(this.x, by + 20); ctx.lineTo(this.x + 6, by + 12); ctx.fill();
+            if (!this.isAI) ctx.stroke();
 
-            ctx.fillStyle = "#0f172a"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-            ctx.fillText(msg, bx, by);
+            ctx.fillStyle = fgColor; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText(msg, this.x, by);
         }
     }
 }
@@ -1889,6 +1926,7 @@ class NetworkController {
             let rp = this.remotePlayers[data.id];
             if (rp) {
                 rp.activeReaction = data.emoji;
+                rp.reactionStartTime = performance.now();
                 if (rp.reactionTimeout) clearTimeout(rp.reactionTimeout);
                 rp.reactionTimeout = setTimeout(() => { rp.activeReaction = null; }, 3000);
             }
@@ -1902,11 +1940,13 @@ class NetworkController {
                     let emoji = e.currentTarget.dataset.emoji;
                     // Activar localmente
                     this.p.activeReaction = emoji;
+                    this.p.reactionStartTime = performance.now();
                     if (this.p.reactionTimeout) clearTimeout(this.p.reactionTimeout);
                     this.p.reactionTimeout = setTimeout(() => { this.p.activeReaction = null; }, 3000);
                     // Ocultar Overlay
                     reactionsOverlay.classList.add('hidden');
                     window.focus();
+                    window.gameEngineInputEnabled = true; // IMPORTANT: Vuelve a habilitar el input
                     // Emitir a los demás
                     if (this.socket.connected) this.socket.emit('playerReacted', { emoji: emoji });
                 });
@@ -1983,12 +2023,10 @@ class NetworkController {
                 if (window.gameEngineInputEnabled && (e.code === "KeyP" || e.key === "p" || e.key === "P")) {
                     if (phoneHud.classList.contains('hidden')) {
                         phoneHud.classList.remove('hidden');
-                        this.renderPhoneContacts();
+                        if (typeof openPhoneHome === 'function') openPhoneHome();
                     } else {
                         phoneHud.classList.add('hidden');
-                        document.getElementById('phone-view-contacts').style.display = 'flex';
-                        document.getElementById('phone-view-chat').style.display = 'none';
-                        this.activeChatUserId = null;
+                        if (typeof openPhoneHome === 'function') openPhoneHome();
 
                         // Force game focus so movement works
                         window.focus();
@@ -2005,12 +2043,17 @@ class NetworkController {
                 if (tE) tE.textContent = timeStr;
             }, 10000);
 
-            // Bind Views
-            document.getElementById('btn-phone-back')?.addEventListener('click', () => {
-                document.getElementById('phone-view-contacts').style.display = 'flex';
-                document.getElementById('phone-view-chat').style.display = 'none';
+            // Bind Views handled mostly by global functions now. 
+            // We just need to handle the specific actions.
+
+            // Reset target user on close
+            window._phoneCloseChatSession = () => {
                 this.activeChatUserId = null;
-            });
+            }
+            window._phoneRenderContacts = () => {
+                this.renderPhoneContacts();
+                this.renderPhoneCalls();
+            }
 
             // Send DM
             const sendDM = () => {
@@ -2039,35 +2082,6 @@ class NetworkController {
                 inputDom.addEventListener('blur', () => window.gameEngineInputEnabled = true);
             }
 
-            // Call button
-            document.getElementById('btn-phone-call')?.addEventListener('click', () => {
-                if (!this.activeChatUserId) return;
-                let remotePeer = this.activeChatUserId; // Usually the socket ID is the peer ID in this setup
-                if (window.localStream && this.peer && remotePeer) {
-                    // Start call with audio and video
-                    this.printPhoneMsg("Sistema", "Iniciando llamada remota...", false);
-
-                    // Actually attempt to call
-                    const call = this.peer.call(remotePeer, window.localStream);
-                    if (call) {
-                        call.on('stream', (remoteStream) => {
-                            this.addRemoteVideoStream(remotePeer, remoteStream);
-                        });
-                        call.on('close', () => {
-                            this.removeRemoteVideoStream(remotePeer);
-                        });
-                        call.on('error', (err) => {
-                            console.log("Phone Call error:", err);
-                            this.removeRemoteVideoStream(remotePeer);
-                            this.printPhoneMsg("Sistema", "Error en llamada.", false);
-                        });
-                        this.activeCalls[remotePeer] = call;
-                    }
-                } else {
-                    this.printPhoneMsg("Sistema", "No tienes permisos de cámara.", false);
-                }
-            });
-
             // Listen for Incoming DMs
             this.socket.on('privateMessage', (data) => {
                 // If phone is hidden, show a small visual hint or just un-hide it
@@ -2082,12 +2096,55 @@ class NetworkController {
                     // Notification on the contact list or auto-switch
                     this.activeChatUserId = data.fromId;
                     document.getElementById('phone-chat-title').textContent = data.fromNick;
+
+                    document.getElementById('phone-view-home').style.display = 'none';
                     document.getElementById('phone-view-contacts').style.display = 'none';
+                    document.getElementById('phone-view-calls').style.display = 'none';
                     document.getElementById('phone-view-chat').style.display = 'flex';
+
                     document.getElementById('phone-chat-messages').innerHTML = ''; // clear history for now
                     this.printPhoneMsg(data.fromNick, data.text, false);
                 }
             });
+
+            // Define global helper to bind clicks for Chat
+            window._openPhoneChat = (id, nick) => {
+                this.activeChatUserId = id;
+                document.getElementById('phone-chat-title').textContent = nick;
+                document.getElementById('phone-view-home').style.display = 'none';
+                document.getElementById('phone-view-contacts').style.display = 'none';
+                document.getElementById('phone-view-calls').style.display = 'none';
+                document.getElementById('phone-view-chat').style.display = 'flex';
+                document.getElementById('phone-chat-messages').innerHTML = ''; // clear session
+            };
+
+            // Define Call Trigger
+            window._triggerPhoneCall = (remotePeer, nick) => {
+                if (window.localStream && this.peer && remotePeer) {
+                    // Start call with audio and video
+                    console.log("Llamando a " + nick);
+
+                    // Actually attempt to call
+                    const call = this.peer.call(remotePeer, window.localStream);
+                    if (call) {
+                        call.on('stream', (remoteStream) => {
+                            this.addRemoteVideoStream(remotePeer, remoteStream);
+                        });
+                        call.on('close', () => {
+                            this.removeRemoteVideoStream(remotePeer);
+                        });
+                        call.on('error', (err) => {
+                            console.log("Phone Call error:", err);
+                            this.removeRemoteVideoStream(remotePeer);
+                        });
+                        this.activeCalls[remotePeer] = call;
+                        // Return to home
+                        if (typeof openPhoneHome === 'function') openPhoneHome();
+                    }
+                } else {
+                    console.warn("No camera permission to call");
+                }
+            };
         }
 
         // Interceptar SendChat de UI (Global)
@@ -2107,40 +2164,59 @@ class NetworkController {
 
         let remotes = Object.values(this.remotePlayers);
         if (remotes.length === 0) {
-            listContainer.innerHTML = '<p style="color:#94a3b8; font-size:14px; text-align:center; padding: 20px 0;">No hay nadie más en línea.</p>';
+            listContainer.innerHTML = '<p style="color:#94a3b8; font-size:14px; text-align:center; padding: 20px 0;">Nadie más en línea.</p>';
             return;
         }
 
         let html = '';
         remotes.forEach(r => {
-            // Check proximity
-            let myRoom = this.map.getRoomAt(this.p.x, this.p.y);
             let rpRoom = this.map.getRoomAt(r.x, r.y);
-            let distStr = "";
             let locationStr = rpRoom ? rpRoom.name : "Jardín Exterior";
 
             html += `<div class="flex-row space-between align-center" style="background:#1e293b; padding:10px; border-radius:10px; cursor:pointer;" onclick="window._openPhoneChat('${r.id}', '${r.nickname}')">
                 <div class="flex-row gap-sm align-center">
                     <div style="width:10px; height:10px; background:#10b981; border-radius:50%;"></div>
                     <div class="flex-col">
-                        <b style="font-size:14px;">${r.nickname}</b>
+                        <b style="font-size:14px; color:white;">${r.nickname}</b>
                         <span style="font-size:11px; color:#94a3b8;">${locationStr}</span>
                     </div>
                 </div>
-                <button class="btn btn-primary" style="padding:4px 8px; font-size:12px;">💬</button>
+                <button class="btn btn-primary" style="padding:6px 10px; font-size:12px; border-radius:10px;">💬</button>
             </div>`;
         });
-
         listContainer.innerHTML = html;
+    }
 
-        // Define global helper to bind clicks
-        window._openPhoneChat = (id, nick) => {
-            this.activeChatUserId = id;
-            document.getElementById('phone-chat-title').textContent = nick;
-            document.getElementById('phone-view-contacts').style.display = 'none';
-            document.getElementById('phone-view-chat').style.display = 'flex';
-            document.getElementById('phone-chat-messages').innerHTML = ''; // clear session
-        };
+    renderPhoneCalls() {
+        let listContainer = document.getElementById('phone-calls-list');
+        if (!listContainer) return;
+
+        let remotes = Object.values(this.remotePlayers);
+        if (remotes.length === 0) {
+            listContainer.innerHTML = '<p style="color:#94a3b8; font-size:14px; text-align:center; padding: 20px 0;">Nadie a quien llamar.</p>';
+            return;
+        }
+
+        let html = '';
+        remotes.forEach(r => {
+            let isActive = this.activeCalls[r.id] != null;
+            let iconText = isActive ? "Cerrar" : "Llamar";
+            let btnClass = isActive ? "btn-danger" : "btn-primary";
+            let clickAction = isActive ? `window._phoneEngineInstance.removeRemoteVideoStream('${r.id}')` : `window._triggerPhoneCall('${r.id}', '${r.nickname}')`;
+
+            html += `<div class="flex-row space-between align-center" style="background:#1e293b; padding:10px; border-radius:10px;">
+                <div class="flex-row gap-sm align-center">
+                    <div style="width:40px; height:40px; background:#334155; border-radius:20px; display:flex; align-items:center; justify-content:center; font-size:18px;">👤</div>
+                    <div class="flex-col">
+                        <b style="font-size:14px; color:white;">${r.nickname}</b>
+                        <span style="font-size:11px; color:${isActive ? '#10b981' : '#94a3b8'};">${isActive ? 'En Llamada' : 'Disponible'}</span>
+                    </div>
+                </div>
+                <button class="btn ${btnClass}" onclick="${clickAction}" style="padding:6px 12px; font-size:12px; border-radius:10px;">${iconText}</button>
+            </div>`;
+        });
+        listContainer.innerHTML = html;
+        window._phoneEngineInstance = this; // Store instance to cancel calls from the UI
     }
 
     printPhoneMsg(author, text, isMe) {
@@ -2177,6 +2253,7 @@ class NetworkController {
                 data.id, data.x, data.y, data.nickname, data.role, data.props
             );
             this.remotePlayers[data.id].isWorking = data.isWorking;
+            this.remotePlayers[data.id].isAbsent = data.isAbsent;
             this.remotePlayers[data.id].frame = data.frame;
         }
     }
@@ -2186,16 +2263,18 @@ class NetworkController {
         if (!this.socket.connected) return;
 
         // Solo enviar si hubo cambio real para optimizar
-        if (this.lastX !== this.p.x || this.lastY !== this.p.y || this.lastFrame !== this.p.frame || this.lastWork !== this.p.isWorking) {
+        if (this.lastX !== this.p.x || this.lastY !== this.p.y || this.lastFrame !== this.p.frame || this.lastWork !== this.p.isWorking || this.lastAbsent !== this.p.isAbsent) {
             this.socket.emit('playerMoved', {
                 x: this.p.x,
                 y: this.p.y,
                 frame: this.p.frame,
-                isWorking: this.p.isWorking
+                isWorking: this.p.isWorking,
+                isAbsent: this.p.isAbsent
             });
 
             this.lastX = this.p.x; this.lastY = this.p.y;
             this.lastFrame = this.p.frame; this.lastWork = this.p.isWorking;
+            this.lastAbsent = this.p.isAbsent;
         }
     }
 
@@ -2307,10 +2386,102 @@ class NetworkController {
 }
 
 /* =====================================================================
+   7.B. AI SECRETARY CHAT CONTROLLER
+====================================================================== */
+let currentAINPC = null;
+
+function openAIChat(npc) {
+    currentAINPC = npc;
+    window.gameEngineInputEnabled = false; // Freeze player movement
+
+    let modal = document.getElementById("ai-chat-modal");
+    document.getElementById("ai-chat-name").innerText = `${npc.nickname} (${npc.role})`;
+    document.getElementById("ai-chat-history").innerHTML = `
+        <div style="background:#1e293b; padding:10px; border-radius:10px 10px 10px 0; align-self:flex-start; max-width:85%;">
+            <span style="color:var(--accent); font-weight:bold; font-size:12px;">${npc.nickname}</span><br>
+            ¡Hola! Soy la ${npc.role} de la oficina. ¿En qué te puedo ayudar hoy?
+        </div>
+    `;
+    modal.classList.remove("hidden");
+    document.getElementById("ai-chat-input").value = "";
+    document.getElementById("ai-chat-input").focus();
+}
+
+document.getElementById('btn-close-ai').addEventListener('click', () => {
+    document.getElementById('ai-chat-modal').classList.add("hidden");
+    window.gameEngineInputEnabled = true;
+    currentAINPC = null;
+    window.focus();
+});
+
+document.getElementById('btn-ai-send').addEventListener('click', sendPromptToAI);
+document.getElementById('ai-chat-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendPromptToAI();
+});
+
+async function sendPromptToAI() {
+    if (!currentAINPC) return;
+    let inputEl = document.getElementById('ai-chat-input');
+    let text = inputEl.value.trim();
+    if (!text) return;
+
+    let chatHistory = document.getElementById('ai-chat-history');
+
+    // Add user message
+    let divUser = document.createElement('div');
+    divUser.style = "background:#3b82f6; padding:10px; border-radius:10px 10px 0 10px; align-self:flex-end; max-width:85%;";
+    divUser.innerHTML = `<span style="color:#bfdbfe; font-weight:bold; font-size:12px;">Tú</span><br>${text}`;
+    chatHistory.appendChild(divUser);
+
+    inputEl.value = "";
+    chatHistory.scrollTop = chatHistory.scrollHeight;
+
+    // Add loading indicator
+    let divLoading = document.createElement('div');
+    divLoading.id = "ai-loading-indicator";
+    divLoading.style = "background:#1e293b; padding:10px; border-radius:10px 10px 10px 0; align-self:flex-start; max-width:85%; color:#94a3b8; font-style:italic;";
+    divLoading.innerText = `${currentAINPC.nickname} está escribiendo...`;
+    chatHistory.appendChild(divLoading);
+    chatHistory.scrollTop = chatHistory.scrollHeight;
+
+    try {
+        // Pollinations.ai Text generation (Free, no-auth logic)
+        // We instruct it to act as the specific secretary
+        let systemPrompt = `Eres ${currentAINPC.nickname}, la ${currentAINPC.role} de una oficina virtual llamada EduSmart. Responde brevemente (máximo 2-3 oraciones), de forma profesional y amable.`;
+        let encodedPrompt = encodeURIComponent(`${systemPrompt}\nEl usuario dice: ${text}`);
+
+        // Use text.pollinations.ai with a specific model or seed to get reliable text responses
+        let res = await fetch(`https://text.pollinations.ai/${encodedPrompt}?model=openai&json=false`);
+        if (!res.ok) throw new Error("AI Timeout");
+
+        let aiResponse = await res.text();
+
+        // Remove loading
+        document.getElementById('ai-loading-indicator')?.remove();
+
+        // Add AI message
+        let divAI = document.createElement('div');
+        divAI.style = "background:#1e293b; padding:10px; border-radius:10px 10px 10px 0; align-self:flex-start; max-width:85%;";
+        divAI.innerHTML = `<span style="color:var(--accent); font-weight:bold; font-size:12px;">${currentAINPC.nickname}</span><br>${aiResponse}`;
+        chatHistory.appendChild(divAI);
+
+    } catch (e) {
+        console.error(e);
+        document.getElementById('ai-loading-indicator')?.remove();
+        let divError = document.createElement('div');
+        divError.style = "background:#ef4444; padding:10px; border-radius:10px 10px 10px 0; align-self:flex-start; max-width:85%; color:white;";
+        divError.innerHTML = "❌ Uh oh, perdí la conexión. Intenta de nuevo más tarde.";
+        chatHistory.appendChild(divError);
+    }
+    chatHistory.scrollTop = chatHistory.scrollHeight;
+}
+
+
+/* =====================================================================
    8. MAIN ENGINE BOOTSTRAP
 ====================================================================== */
 let _map, _input, _renderer, _ui, _network;
-let _player, _sonora;
+let _player, _sonora, _aiDufy, _aiReyes, _aiTesi;
 let _lastTime = 0, _frameCount = 0, _fpsTime = 0;
 let _isRunning = false;
 window.gameEngineInputEnabled = true;
@@ -2321,8 +2492,13 @@ window.addEventListener('init-engine', async () => {
     // Arrancar NetworkController
     _network = new NetworkController(_player, _map, _ui);
 
-    // Instanciar NPC Sonora (Recepción X:12, Y:35)
-    _sonora = new NPC("npc_sonora", 12 * TILE, 35 * TILE, "Sonora", "Recepcionista");
+    // Instanciar NPC Sonora (Recepción X:12, Y:35) con AI habilitada (true)
+    _sonora = new NPC("npc_sonora", 12 * TILE, 35 * TILE, "Sonora", "Recepcionista", true);
+
+    // Más secretarias para otras oficinas (Añadiendo variedad)
+    _aiDufy = new NPC("npc_dufy", 40 * TILE, 30 * TILE, "Clara", "Secretaria Dufy", true);
+    _aiReyes = new NPC("npc_reyes", 5 * TILE, 22 * TILE, "Marta", "Secretaria Reyes", true);
+    _aiTesi = new NPC("npc_tesi", 42 * TILE, 20 * TILE, "Sofía", "Secretaria TesiFive", true);
 
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -2350,6 +2526,72 @@ setInterval(() => {
     if (_network) _network.sendLocalUpdate();
 }, 100); // 10 ticks/s
 
+/* =====================================================================
+   CAMERA VERIFIER (Motion Detection AFK)
+====================================================================== */
+const motionCanvas = document.createElement('canvas'); // hidden canvas
+const motionCtx = motionCanvas.getContext('2d', { willReadFrequently: true });
+let _lastImageData = null;
+let _afkTimer = 15; // Segundos permitidos sin movimiento
+let _isAFK = false;
+
+setInterval(() => {
+    if (!window.localStream || !window.localStream.getVideoTracks()[0] || !window.localStream.getVideoTracks()[0].enabled) return;
+
+    let video = document.getElementById('local-video');
+    if (!video || video.videoWidth === 0) return;
+
+    // Small resolution for performance
+    motionCanvas.width = 64;
+    motionCanvas.height = 48;
+    motionCtx.drawImage(video, 0, 0, motionCanvas.width, motionCanvas.height);
+
+    let currentImageData = motionCtx.getImageData(0, 0, motionCanvas.width, motionCanvas.height).data;
+
+    if (_lastImageData) {
+        let diffPixels = 0;
+        let diffThreshold = 30; // Diferencia min. de color
+
+        for (let i = 0; i < currentImageData.length; i += 4) {
+            let rDiff = Math.abs(currentImageData[i] - _lastImageData[i]);
+            let gDiff = Math.abs(currentImageData[i + 1] - _lastImageData[i + 1]);
+            let bDiff = Math.abs(currentImageData[i + 2] - _lastImageData[i + 2]);
+
+            if (rDiff > diffThreshold || gDiff > diffThreshold || bDiff > diffThreshold) {
+                diffPixels++;
+            }
+        }
+
+        // Si cambia más del 3% de los pixeles, hay movimiento
+        let percentDiff = diffPixels / (motionCanvas.width * motionCanvas.height);
+
+        if (percentDiff > 0.03) {
+            // MOVEMENT DETECTED
+            _afkTimer = 15;
+            if (_isAFK) {
+                _isAFK = false;
+                _player.isAbsent = false;
+                if (_network && _network.socket.connected) {
+                    _network.socket.emit('chatMessage', { nick: "Sistema", text: `${_player.nickname} ha regresado a las ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` });
+                }
+            }
+        } else {
+            // NO MOVEMENT
+            _afkTimer--;
+            if (_afkTimer <= 0 && !_isAFK) {
+                _isAFK = true;
+                _player.isAbsent = true;
+                if (_network && _network.socket.connected) {
+                    _network.socket.emit('chatMessage', { nick: "Sistema", text: `${_player.nickname} se ha ausentado a las ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` });
+                }
+            }
+        }
+    }
+
+    _lastImageData = currentImageData;
+
+}, 1000); // Evaluar cada segundo
+
 function mainLoop(timestamp) {
     if (!_isRunning) return;
 
@@ -2372,7 +2614,10 @@ function mainLoop(timestamp) {
                 _player.updateAnim(dt, false);
             }
 
-            if (_sonora) _sonora.update(_player); // Pass player for distance check
+            if (_sonora) _sonora.update(_player, timestamp);
+            if (_aiDufy) _aiDufy.update(_player, timestamp);
+            if (_aiReyes) _aiReyes.update(_player, timestamp);
+            if (_aiTesi) _aiTesi.update(_player, timestamp);
 
             // Update remotes
             if (_network) _network.update(dt);
@@ -2390,7 +2635,13 @@ function mainLoop(timestamp) {
             _renderer.cy += (_player.y - _renderer.cy) * 5 * dt;
 
             let remotes = _network ? _network.getRenderList() : [];
-            _renderer.renderScene(_map, [_player, _sonora, ...remotes]);
+            let allNPCs = [];
+            if (_sonora) allNPCs.push(_sonora);
+            if (_aiDufy) allNPCs.push(_aiDufy);
+            if (_aiReyes) allNPCs.push(_aiReyes);
+            if (_aiTesi) allNPCs.push(_aiTesi);
+
+            _renderer.renderScene(_map, [_player, ...allNPCs, ...remotes]);
         }
 
         requestAnimationFrame(mainLoop);
