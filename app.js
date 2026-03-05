@@ -2109,133 +2109,361 @@ function mainLoop(timestamp) {
 }
 
 /* =====================================================================
-   9. GOOGLE DRIVE & SHEETS INTEGRATION (OAUTH 2.0)
+   9. GOOGLE APPS SCRIPT INTEGRATION (DRIVE, TASKS, CALENDAR)
 ====================================================================== */
-const GOOGLE_CLIENT_ID = '787877374390-3j2h20eokv4k3boj2u8ss60a4u2e7nsu.apps.googleusercontent.com';
-const GOOGLE_API_KEY = 'AIzaSyAGosJ7L6pCnp4uGs27EFjA77woIHz7uV8';
-const GOOGLE_DISCOVERY_DOCS = [
-    'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest',
-    'https://sheets.googleapis.com/$discovery/rest?version=v4'
-];
-const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets';
-
-let tokenClient;
-let gapiInited = false;
-let gisInited = false;
-
-window.gapiLoaded = function () {
-    gapi.load('client', initializeGapiClient);
-}
-
-async function initializeGapiClient() {
-    await gapi.client.init({
-        apiKey: GOOGLE_API_KEY,
-        discoveryDocs: GOOGLE_DISCOVERY_DOCS,
-    });
-    gapiInited = true;
-    maybeEnableGoogleAuth();
-}
-
-window.gisLoaded = function () {
-    tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: GOOGLE_CLIENT_ID,
-        scope: GOOGLE_SCOPES,
-        callback: '', // defined later
-    });
-    gisInited = true;
-    maybeEnableGoogleAuth();
-}
-
-function maybeEnableGoogleAuth() {
-    if (gapiInited && gisInited) {
-        let btn = document.getElementById('btn-google-auth');
-        if (btn) btn.disabled = false;
-    }
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    let authBtn = document.getElementById('btn-google-auth');
-    if (authBtn) {
-        authBtn.disabled = true;
-        authBtn.onclick = handleGoogleAuthClick;
-    }
-    let createBtn = document.getElementById('btn-create-sheet');
-    if (createBtn) createBtn.onclick = createNewSpreadsheet;
-});
-
-function handleGoogleAuthClick() {
-    tokenClient.callback = async (resp) => {
-        if (resp.error !== undefined) {
-            console.error(resp.error);
-            return;
-        }
-        document.getElementById('btn-google-auth').style.display = 'none';
-        document.getElementById('drive-actions').style.display = 'flex';
-        await listDriveFiles();
-    };
-    if (gapi.client.getToken() === null) {
-        tokenClient.requestAccessToken({ prompt: 'consent' });
-    } else {
-        tokenClient.requestAccessToken({ prompt: '' });
-    }
-}
-
-// Variables de configuración de Archivos (El usuario debe llenarlas)
-const TARGET_DRIVE_FOLDER_ID = '1Lzgy6VF7IwvN3j20rstJHY-0RuSLT__T';
+// El usuario debe pegar la URL web resultante de publicar el Apps Script aquí
+const GAS_BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzD5pq6b-FusIosz-PBoubm-w2A122o6s8kvTsxc7YdXgKOeAns-TXIfcpNo-J-HoMkzA/exec';
 const TARGET_SPREADSHEET_ID = '1Zh2YRueqxpRFQbWMUdKRM9yunqt3HmWajXJxw0A1_jo';
 
-async function listDriveFiles() {
-    let listUI = document.getElementById('drive-files-list');
-    listUI.innerHTML = '<p style="text-align:center;">Cargando archivos desde Google Drive...</p>';
-    try {
-        let query = "trashed=false and (mimeType='application/vnd.google-apps.spreadsheet' or mimeType='application/pdf' or mimeType='application/vnd.google-apps.document')";
-        if (TARGET_DRIVE_FOLDER_ID && TARGET_DRIVE_FOLDER_ID !== 'TU_ID_DE_CARPETA_AQUI') {
-            query = `'${TARGET_DRIVE_FOLDER_ID}' in parents and trashed=false`;
-        }
+document.addEventListener('DOMContentLoaded', () => {
+    // Archivos
+    const btnRefFiles = document.getElementById('btn-refresh-files');
+    if (btnRefFiles) btnRefFiles.onclick = loadDriveFiles;
+    const btnUpload = document.getElementById('btn-upload-drive');
+    if (btnUpload) btnUpload.onclick = uploadDriveFile;
 
-        let response = await gapi.client.drive.files.list({
-            'pageSize': 20,
-            'fields': 'files(id, name, mimeType, webViewLink)',
-            'q': query
-        });
-        let files = response.result.files;
+    // Tareas
+    const btnRefTasks = document.getElementById('btn-refresh-tasks');
+    if (btnRefTasks) btnRefTasks.onclick = loadTasks;
+
+    // Calendario
+    const btnRefCal = document.getElementById('btn-refresh-cal');
+    if (btnRefCal) btnRefCal.onclick = loadCalendar;
+});
+
+// ---------------------------------------------------------------------
+// ARCHIVOS (Google Drive via GAS)
+// ---------------------------------------------------------------------
+async function loadDriveFiles() {
+    let listUI = document.getElementById('drive-files-list');
+    listUI.innerHTML = '<p style="text-align:center;">Cargando archivos desde Drive...</p>';
+    if (GAS_BACKEND_URL === 'pega_aqui_la_url_de_tu_google_apps_script') {
+        listUI.innerHTML = '<p style="color:var(--danger); text-align:center;">Falta configurar GAS_BACKEND_URL en app.js</p>';
+        return;
+    }
+
+    try {
+        let res = await fetch(`${GAS_BACKEND_URL}?action=getFiles`);
+        let data = await res.json();
+        if (!data.success) throw new Error(data.error);
+
+        let files = data.files;
         if (!files || files.length == 0) {
-            listUI.innerHTML = '<p style="text-align:center;">No se encontraron documentos ni hojas de cálculo.</p>';
+            listUI.innerHTML = '<p style="text-align:center;">La carpeta está vacía.</p>';
             return;
         }
+
         let html = '';
         files.forEach((file) => {
             let icon = '📄';
             if (file.mimeType.includes('spreadsheet')) icon = '📊';
             if (file.mimeType.includes('document')) icon = '📝';
+            if (file.mimeType.includes('image')) icon = '🖼️';
+
             html += `<div class="file-item flex-row space-between align-center" style="background:rgba(255,255,255,0.1); padding:8px 12px; border-radius:6px; margin-bottom: 5px;">
                         <span>${icon} ${file.name}</span>
-                        <a href="${file.webViewLink}" target="_blank" class="btn btn-primary" style="padding: 4px 8px; font-size:12px;">Abrir</a>
+                        <div class="flex-row gap-sm">
+                            <a href="${file.url}" target="_blank" class="btn btn-primary" style="padding: 4px 8px; font-size:12px;">Abrir</a>
+                            <button onclick="deleteDriveFile('${file.id}')" class="btn" style="padding: 4px 8px; font-size:12px; background:var(--danger)">Eliminar</button>
+                        </div>
+                     </div>`;
+        });
+
+        // Add spreadsheet maestro en la parte superior
+        let maestroBtn = `<div class="file-item flex-row space-between align-center" style="background:rgba(0,0,0,0.3); border:1px solid var(--accent); padding:8px 12px; border-radius:6px; margin-bottom: 15px;">
+                            <span style="color:var(--accent)">📊 SPREADSHEET PRINCIPAL (BD)</span>
+                            <a href="https://docs.google.com/spreadsheets/d/${TARGET_SPREADSHEET_ID}/edit" target="_blank" class="btn btn-primary" style="padding: 4px 8px; font-size:12px;">Abrir Base de Datos</a>
+                          </div>`;
+
+        listUI.innerHTML = maestroBtn + html;
+    } catch (err) {
+        listUI.innerHTML = `<p style="color:var(--danger); text-align:center;">Error: ${err.message}</p>`;
+    }
+}
+
+async function uploadDriveFile() {
+    let input = document.getElementById('input-upload-drive');
+    if (!input.files || input.files.length === 0) return alert('Selecciona un archivo.');
+
+    let btnUpload = document.getElementById('btn-upload-drive');
+    btnUpload.textContent = 'Subiendo...';
+    btnUpload.disabled = true;
+
+    try {
+        let file = input.files[0];
+        let base64 = await new Promise((resolve) => {
+            let reader = new FileReader();
+            reader.onload = e => resolve(e.target.result);
+            reader.readAsDataURL(file);
+        });
+
+        let res = await fetch(GAS_BACKEND_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'uploadFile',
+                fileName: file.name,
+                mimeType: file.type,
+                base64: base64
+            })
+        });
+
+        let data = await res.json();
+        if (!data.success) throw new Error(data.error);
+        alert('Archivo subido con éxito.');
+        input.value = '';
+        loadDriveFiles();
+    } catch (err) {
+        alert('Error al subir: ' + err.message);
+    } finally {
+        btnUpload.textContent = 'Subir Archivo';
+        btnUpload.disabled = false;
+    }
+}
+
+async function deleteDriveFile(fileId) {
+    if (!confirm("¿Estás seguro de eliminar este archivo? (Se moverá a la papelera del dueño)")) return;
+    try {
+        let res = await fetch(GAS_BACKEND_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'deleteFile', fileId: fileId })
+        });
+        let data = await res.json();
+        if (!data.success) throw new Error(data.error);
+        loadDriveFiles();
+    } catch (err) {
+        alert('Error al eliminar: ' + err.message);
+    }
+}
+
+// ---------------------------------------------------------------------
+// TAREAS (Google Sheets via GAS)
+// ---------------------------------------------------------------------
+async function loadTasks() {
+    let listUI = document.getElementById('tasks-list-container');
+    listUI.innerHTML = '<p style="text-align:center;">Sincronizando tareas...</p>';
+    if (GAS_BACKEND_URL === 'https://script.google.com/macros/s/AKfycbzD5pq6b-FusIosz-PBoubm-w2A122o6s8kvTsxc7YdXgKOeAns-TXIfcpNo-J-HoMkzA/exec') return;
+
+    try {
+        let res = await fetch(`${GAS_BACKEND_URL}?action=getTasks`);
+        let data = await res.json();
+        if (!data.success) throw new Error(data.error);
+
+        let tasks = data.tasks;
+        if (!tasks || tasks.length == 0) {
+            listUI.innerHTML = '<p style="text-align:center; color:#10b981;">No hay tareas pendientes. ¡Todo al día!</p>';
+            return;
+        }
+
+        let html = '';
+        tasks.forEach((t) => {
+            html += `<div class="task-card flex-row space-between align-center" style="background:rgba(255,255,255,0.05); border-left:4px solid #eab308; padding:12px; border-radius:4px; margin-bottom:8px;">
+                        <div class="flex-col">
+                            <b style="font-size:18px;">${t.name}</b>
+                            <span style="font-size:14px; color:var(--text-secondary);">Resp: ${t.responsible || 'N/A'} | Límite: ${new Date(t.deadline).toLocaleDateString() || 'N/A'}</span>
+                        </div>
+                        <div class="flex-row gap-sm">
+                            <button onclick="markTaskDone(${t.rowIdx})" class="btn" style="background:#10b981; padding:6px 10px;">✓ Lista</button>
+                            <button onclick="deleteTaskRow(${t.rowIdx})" class="btn" style="background:var(--danger); padding:6px 10px;">X Borrar</button>
+                        </div>
                      </div>`;
         });
         listUI.innerHTML = html;
     } catch (err) {
-        listUI.innerHTML = `<p style="color:var(--danger); text-align:center;">Error al cargar archivos: ${err.message}</p>`;
+        listUI.innerHTML = `<p style="color:var(--danger); text-align:center;">Error: ${err.message}</p>`;
     }
 }
 
-async function createNewSpreadsheet() {
-    // Si hay un spreadsheet específico configurado, se recomienda abrir ese en lugar de crear uno nuevo.
-    if (TARGET_SPREADSHEET_ID && TARGET_SPREADSHEET_ID !== 'TU_ID_DE_SPREADSHEET_AQUI') {
-        window.open(`https://docs.google.com/spreadsheets/d/${TARGET_SPREADSHEET_ID}/edit`, '_blank');
-        return;
-    }
+window.markTaskDone = async function (rowIdx) {
+    try {
+        let res = await fetch(GAS_BACKEND_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'updateTask', rowIdx: rowIdx, status: 'Resuelta' })
+        });
+        loadTasks(); // recargar
+    } catch (err) { alert(err.message); }
+}
+
+window.deleteTaskRow = async function (rowIdx) {
+    if (!confirm('¿Eliminar esta tarea definitivamente del spreadsheet?')) return;
+    try {
+        let res = await fetch(GAS_BACKEND_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'deleteTask', rowIdx: rowIdx })
+        });
+        loadTasks();
+    } catch (err) { alert(err.message); }
+}
+
+// ---------------------------------------------------------------------
+// CALENDARIO (Google Sheets via GAS)
+// ---------------------------------------------------------------------
+let currentCalMonth = new Date().getMonth();
+let currentCalYear = new Date().getFullYear();
+let cachedEvents = [];
+let cachedTasks = [];
+
+async function loadCalendar() {
+    let container = document.getElementById('calendar-grid-container');
+    container.innerHTML = '<p style="text-align:center; padding-top:20px;">Sincronizando eventos y tareas...</p>';
+    if (GAS_BACKEND_URL === 'pega_aqui_la_url_de_tu_google_apps_script') return;
 
     try {
-        let response = await gapi.client.sheets.spreadsheets.create({
-            properties: {
-                title: 'Nuevo Doc EduSmart ' + new Date().toLocaleDateString()
-            }
-        });
-        alert('Spreadsheet creado con éxito.');
-        window.open(response.result.spreadsheetUrl, '_blank');
-        await listDriveFiles(); // Refresh list
+        let [resCal, resTasks] = await Promise.all([
+            fetch(`${GAS_BACKEND_URL}?action=getCalendar`),
+            fetch(`${GAS_BACKEND_URL}?action=getTasks`)
+        ]);
+
+        let dataCal = await resCal.json();
+        let dataTasks = await resTasks.json();
+
+        if (!dataCal.success) throw new Error(dataCal.error || 'API Calendar Error');
+        if (!dataTasks.success) throw new Error(dataTasks.error || 'API Tasks Error');
+
+        cachedEvents = dataCal.events || [];
+        cachedTasks = dataTasks.tasks || [];
+
+        renderCalendarGrid();
     } catch (err) {
-        alert('Error creando spreadsheet: ' + err.message);
+        container.innerHTML = `<p style="color:var(--danger); text-align:center; padding-top:20px;">Error: ${err.message}</p>`;
     }
 }
+
+window.changeCalMonth = function (offset) {
+    currentCalMonth += offset;
+    if (currentCalMonth < 0) { currentCalMonth = 11; currentCalYear--; }
+    else if (currentCalMonth > 11) { currentCalMonth = 0; currentCalYear++; }
+    renderCalendarGrid();
+}
+
+function renderCalendarGrid() {
+    let container = document.getElementById('calendar-grid-container');
+    const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
+    let html = `
+    <div class="calendar-wrapper">
+        <div class="calendar-header">
+            <button class="btn" onclick="changeCalMonth(-1)">⬅ Mes Anterior</button>
+            <h3>${monthNames[currentCalMonth]} ${currentCalYear}</h3>
+            <button class="btn" onclick="changeCalMonth(1)">Mes Siguiente ➡</button>
+        </div>
+        <div class="calendar-grid">
+            <div class="calendar-day-header">Dom</div>
+            <div class="calendar-day-header">Lun</div>
+            <div class="calendar-day-header">Mar</div>
+            <div class="calendar-day-header">Mié</div>
+            <div class="calendar-day-header">Jue</div>
+            <div class="calendar-day-header">Vie</div>
+            <div class="calendar-day-header">Sáb</div>
+    `;
+
+    let firstDay = new Date(currentCalYear, currentCalMonth, 1).getDay();
+    let daysInMonth = new Date(currentCalYear, currentCalMonth + 1, 0).getDate();
+
+    // Empty cells at the start
+    for (let i = 0; i < firstDay; i++) {
+        html += `<div class="calendar-cell empty"></div>`;
+    }
+
+    let today = new Date();
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        let isToday = (day === today.getDate() && currentCalMonth === today.getMonth() && currentCalYear === today.getFullYear());
+        html += `<div class="calendar-cell ${isToday ? 'today' : ''}">`;
+        html += `<div class="cell-date">${day}</div>`;
+
+        let cellDateStr = new Date(currentCalYear, currentCalMonth, day).toISOString().split('T')[0];
+
+        // Filter events for this day
+        cachedEvents.forEach(e => {
+            let evDate = new Date(e.start);
+            if (evDate.getFullYear() === currentCalYear && evDate.getMonth() === currentCalMonth && evDate.getDate() === day) {
+                html += `<div class="cal-event-badge cal-booking-badge" title="${e.details || ''}">${e.title}</div>`;
+            }
+        });
+
+        // Filter tasks deadlines for this day
+        cachedTasks.forEach(t => {
+            if (!t.deadline) return;
+            let tDate = new Date(t.deadline);
+            if (tDate.getFullYear() === currentCalYear && tDate.getMonth() === currentCalMonth && tDate.getDate() === day) {
+                let statusClass = (t.status && t.status.toLowerCase() === 'resuelta') ? 'done' : '';
+                html += `<div class="cal-event-badge cal-task-badge ${statusClass}" title="Resp: ${t.responsible || 'N/A'}">T: ${t.name}</div>`;
+            }
+        });
+
+        html += `</div>`;
+    }
+
+    let totalCells = firstDay + daysInMonth;
+    let remainingCells = (7 - (totalCells % 7)) % 7;
+    for (let i = 0; i < remainingCells; i++) {
+        html += `<div class="calendar-cell empty"></div>`;
+    }
+
+    html += `</div></div>`;
+    container.innerHTML = html;
+}
+
+/* =====================================================================
+   10. PRESENTATION MODE SYNC
+====================================================================== */
+let localIsPresenter = false;
+
+window.startPresentation = function (url) {
+    if (!url) return;
+    localIsPresenter = true;
+    document.getElementById('presentation-viewer').style.display = 'block';
+    document.getElementById('presentation-content-area').innerHTML = `<iframe src="${url}" allowfullscreen style="width:100%; height:100%; border:none;"></iframe>`;
+    document.getElementById('presentation-controls').classList.remove('hidden');
+    document.getElementById('presentation-viewer-hint').classList.add('hidden');
+
+    if (typeof window.socket !== 'undefined' && window.socket) {
+        window.socket.emit('zone_broadcast', { type: 'present_doc', url: url, presenterId: window.socket.id });
+    }
+}
+
+window.stopPresentation = function () {
+    localIsPresenter = false;
+    document.getElementById('presentation-viewer').style.display = 'none';
+    document.getElementById('presentation-content-area').innerHTML = '';
+
+    if (typeof window.socket !== 'undefined' && window.socket) {
+        window.socket.emit('zone_broadcast', { type: 'stop_present_doc' });
+    }
+}
+
+// Intercept local sockets to handle presentation commands
+document.addEventListener('DOMContentLoaded', () => {
+    let btnClose = document.getElementById('btn-pres-close');
+    if (btnClose) btnClose.onclick = stopPresentation;
+
+    // Asignar los clics de los botones de PDF o Drive
+    // para que llamen a startPresentation(url) en vez de abrir en pestaña nueva
+    const oldOpen = window.open;
+    window.open = function (url, name, features) {
+        // En una app real podríamos interceptar clicks a docs 
+        // y dar a elegir "Abrir" o "Presentar"
+        return oldOpen(url, name, features);
+    };
+});
+
+// Suponiendo que el NetworkController o similar usa socket.on
+// Agregaremos de manera segura un escuchador cuando socket exista:
+let checkSocketInterval = setInterval(() => {
+    if (typeof window.socket !== 'undefined' && window.socket) {
+        clearInterval(checkSocketInterval);
+        window.socket.on('zone_broadcast', (data) => {
+            if (data.type === 'present_doc' && data.presenterId !== window.socket.id) {
+                localIsPresenter = false;
+                document.getElementById('presentation-viewer').style.display = 'block';
+                // El iframe para los espectadores usa pointer-events:none para bloquear manipulación
+                document.getElementById('presentation-content-area').innerHTML = `<iframe src="${data.url}" style="width:100%; height:100%; border:none; pointer-events:none;"></iframe>`;
+                document.getElementById('presentation-controls').classList.add('hidden');
+                document.getElementById('presentation-viewer-hint').classList.remove('hidden');
+            } else if (data.type === 'stop_present_doc' && !localIsPresenter) {
+                document.getElementById('presentation-viewer').style.display = 'none';
+                document.getElementById('presentation-content-area').innerHTML = '';
+            }
+        });
+    }
+}, 1000);

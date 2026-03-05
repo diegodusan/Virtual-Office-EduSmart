@@ -127,19 +127,37 @@
                 </div>
             </section>
 
-            <!-- VIEW: CALENDARIO (Placeholder) -->
-            <section id="view-calendar" class="view-section hidden">
-                <div class="placeholder-content glass-panel-strong">
-                    <h2>📅 Calendario de Tareas</h2>
-                    <p>Módulo en construcción. Aquí verás tus reuniones y entregas.</p>
+            <!-- VIEW: CALENDARIO -->
+            <section id="view-calendar" class="view-section hidden flex-col">
+                <div class="glass-panel-strong flex-col gap-md"
+                    style="padding: 20px; height: 100%; display: flex; flex: 1;">
+                    <div class="flex-row space-between align-center">
+                        <h2>📅 Calendario de Eventos y Entregas</h2>
+                        <button id="btn-refresh-cal" class="btn btn-primary">↻ Cargar</button>
+                    </div>
+                    <div id="calendar-grid-container" class="flex-col overflow-y flex-1"
+                        style="background: rgba(0,0,0,0.1); border-radius: 8px;">
+                        <p
+                            style="color:var(--text-secondary); text-align:center; padding-top: 20px; font-style:italic;">
+                            Aquí se visualizarán los eventos de tu Spreadsheet.</p>
+                    </div>
                 </div>
             </section>
 
-            <!-- VIEW: TAREAS (Placeholder) -->
-            <section id="view-tasks" class="view-section hidden">
-                <div class="placeholder-content glass-panel-strong">
-                    <h2>✅ Lista de Funciones</h2>
-                    <p>Módulo en construcción. Asignación de tickets y progreso.</p>
+            <!-- VIEW: TAREAS -->
+            <section id="view-tasks" class="view-section hidden flex-col">
+                <div class="glass-panel-strong flex-col gap-md"
+                    style="padding: 20px; height: 100%; display: flex; flex: 1;">
+                    <div class="flex-row space-between align-center">
+                        <h2>✅ Tareas Pendientes</h2>
+                        <button id="btn-refresh-tasks" class="btn btn-primary">↻ Cargar</button>
+                    </div>
+                    <div id="tasks-list-container" class="flex-col gap-sm overflow-y flex-1"
+                        style="background: rgba(0,0,0,0.1); border-radius: 8px; padding: 10px;">
+                        <p
+                            style="color:var(--text-secondary); text-align:center; padding-top: 20px; font-style:italic;">
+                            Cargando tareas no resueltas...</p>
+                    </div>
                 </div>
             </section>
 
@@ -148,18 +166,21 @@
                 <div class="glass-panel-strong file-manager-container flex-col gap-md"
                     style="padding: 20px; height: 100%; display: flex; flex: 1;">
                     <div class="flex-row space-between align-center">
-                        <h2>📁 Gestor de Archivos (Google Drive)</h2>
-                        <button id="btn-google-auth" class="btn btn-primary"
-                            style="background:#4285F4; border-color:#4285F4;">Conectar Google</button>
+                        <h2>📁 Gestor de Archivos (Directorio Remoto)</h2>
+                        <button id="btn-refresh-files" class="btn btn-primary">↻ Cargar</button>
                     </div>
+                    <!-- Formulario de Subida -->
+                    <div class="flex-row gap-md align-center"
+                        style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px;">
+                        <input type="file" id="input-upload-drive" class="custom-select" style="flex:1;">
+                        <button id="btn-upload-drive" class="btn btn-primary"
+                            style="background: #eab308; border-color:#eab308;">Subir Archivo</button>
+                    </div>
+
                     <div id="drive-files-list" class="flex-col gap-sm overflow-y flex-1"
                         style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; min-height: 200px;">
-                        <p style="color:var(--text-secondary); text-align:center; padding-top: 20px;">Conecta tu cuenta
-                            de Google para ver y organizar tus documentos del campus.</p>
-                    </div>
-                    <div class="flex-row gap-sm" id="drive-actions" style="display:none; padding-top:10px;">
-                        <button id="btn-create-sheet" class="btn lg-btn"
-                            style="background:#10b981; border-color:#10b981;">📄 Nuevo Hoja de Cálculo</button>
+                        <p style="color:var(--text-secondary); text-align:center; padding-top: 20px;">Esperando
+                            conexión...</p>
                     </div>
                 </div>
             </section>
@@ -542,10 +563,6 @@
     <!-- WebRTC and Sockets -->
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-
-    <!-- Google APIs -->
-    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
-    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 
     <!-- Scripts unificados -->
     <script src="app.js"></script>

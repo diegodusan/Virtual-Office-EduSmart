@@ -802,3 +802,102 @@ input[type="checkbox"] {
     margin-bottom: 8px;
     text-shadow: none;
 }
+
+/* ==================== 
+   Calendar Grid UI
+   ==================== */
+.calendar-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background: #c3af91;
+    border: 4px solid var(--border-color);
+    margin-bottom: 15px;
+}
+
+.calendar-header h3 {
+    font-size: 28px;
+    margin: 0;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    flex: 1;
+}
+
+.calendar-day-header {
+    background: var(--border-color);
+    color: var(--panel-bg);
+    text-align: center;
+    padding: 8px 0;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.calendar-cell {
+    background: rgba(255, 255, 255, 0.3);
+    border: 2px solid var(--border-color);
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    padding: 4px;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.calendar-cell.empty {
+    background: transparent;
+    border: 2px dashed rgba(120, 53, 15, 0.3);
+}
+
+.calendar-cell.today {
+    background: rgba(250, 204, 21, 0.3);
+    border: 4px solid var(--accent);
+}
+
+.cell-date {
+    font-size: 20px;
+    font-weight: bold;
+    text-align: right;
+    margin-bottom: 4px;
+    color: var(--text-secondary);
+}
+
+.cal-event-badge {
+    font-size: 14px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    color: #fff;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+}
+
+.cal-task-badge {
+    background: var(--danger);
+    border: 2px solid #991b1b;
+}
+
+.cal-task-badge.done {
+    background: var(--success);
+    border: 2px solid #065f46;
+    text-decoration: line-through;
+    opacity: 0.7;
+}
+
+.cal-booking-badge {
+    background: #3b82f6;
+    border: 2px solid #1e3a8a;
+}
