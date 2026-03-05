@@ -2181,8 +2181,8 @@ function handleGoogleAuthClick() {
 }
 
 // Variables de configuración de Archivos (El usuario debe llenarlas)
-const TARGET_DRIVE_FOLDER_ID = 'TU_ID_DE_CARPETA_AQUI';
-const TARGET_SPREADSHEET_ID = 'TU_ID_DE_SPREADSHEET_AQUI';
+const TARGET_DRIVE_FOLDER_ID = '1Lzgy6VF7IwvN3j20rstJHY-0RuSLT__T';
+const TARGET_SPREADSHEET_ID = '1Zh2YRueqxpRFQbWMUdKRM9yunqt3HmWajXJxw0A1_jo';
 
 async function listDriveFiles() {
     let listUI = document.getElementById('drive-files-list');
