@@ -13,6 +13,12 @@
 </head>
 
 <body>
+    <!-- Global Error Overlay for rendering bugs -->
+    <div id="error-overlay"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(100,0,0,0.9); color:white; font-family:monospace; z-index:9999; padding:20px; white-space:pre-wrap; overflow-y:auto;">
+        <h2>Game Loop Error (0 FPS Crash)</h2>
+        <div id="error-overlay-msg"></div>
+    </div>
 
     <!-- APP CONTAINER (SPA Layout) -->
     <div id="app-container">
@@ -212,32 +218,89 @@
                         </div>
                     </div>
 
-                    <div class="form-group row">
+                    <div class="form-group row scrollable-colors">
                         <label>Camisa:</label>
                         <div class="color-picker" id="picker-shirt">
-                            <button class="color-btn active" data-color="#3b82f6" style="background:#3b82f6"></button>
-                            <button class="color-btn" data-color="#ef4444" style="background:#ef4444"></button>
-                            <button class="color-btn" data-color="#10b981" style="background:#10b981"></button>
-                            <button class="color-btn" data-color="#f59e0b" style="background:#f59e0b"></button>
-                            <button class="color-btn" data-color="#f8fafc" style="background:#f8fafc"></button>
+                            <button class="color-btn active" data-color="#3b82f6" style="background:#3b82f6"
+                                title="Azul Real"></button>
+                            <button class="color-btn" data-color="#ef4444" style="background:#ef4444"
+                                title="Rojo"></button>
+                            <button class="color-btn" data-color="#10b981" style="background:#10b981"
+                                title="Esmeralda"></button>
+                            <button class="color-btn" data-color="#f59e0b" style="background:#f59e0b"
+                                title="Ambar"></button>
+                            <button class="color-btn" data-color="#f8fafc" style="background:#f8fafc"
+                                title="Blanco Nieve"></button>
+                            <button class="color-btn" data-color="#1e293b" style="background:#1e293b"
+                                title="Gris Pizarra"></button>
+                            <button class="color-btn" data-color="#8b5cf6" style="background:#8b5cf6"
+                                title="Violeta"></button>
+                            <button class="color-btn" data-color="#ec4899" style="background:#ec4899"
+                                title="Rosa Fuerte"></button>
+                            <button class="color-btn" data-color="#14b8a6" style="background:#14b8a6"
+                                title="Turquesa"></button>
+                            <button class="color-btn" data-color="#eab308" style="background:#eab308"
+                                title="Amarillo"></button>
+                            <button class="color-btn" data-color="#f97316" style="background:#f97316"
+                                title="Naranja"></button>
+                            <button class="color-btn" data-color="#06b6d4" style="background:#06b6d4"
+                                title="Cian"></button>
+                            <button class="color-btn" data-color="#64748b" style="background:#64748b"
+                                title="Gris Azulado"></button>
+                            <button class="color-btn" data-color="#000000" style="background:#000000"
+                                title="Negro Profundo"></button>
+                            <button class="color-btn" data-color="#a3e635" style="background:#a3e635"
+                                title="Lima"></button>
                         </div>
                     </div>
 
-                    <div class="form-group row">
+                    <div class="form-group row scrollable-colors">
                         <label>Pantalón:</label>
                         <div class="color-picker" id="picker-pants">
-                            <button class="color-btn active" data-color="#1e293b" style="background:#1e293b"></button>
-                            <button class="color-btn" data-color="#1e3a8a" style="background:#1e3a8a"></button>
-                            <button class="color-btn" data-color="#451a03" style="background:#451a03"></button>
-                            <button class="color-btn" data-color="#94a3b8" style="background:#94a3b8"></button>
+                            <button class="color-btn active" data-color="#1e293b" style="background:#1e293b"
+                                title="Pizarra"></button>
+                            <button class="color-btn" data-color="#1e3a8a" style="background:#1e3a8a"
+                                title="Azul Profundo"></button>
+                            <button class="color-btn" data-color="#451a03" style="background:#451a03"
+                                title="Marrón Oscuro"></button>
+                            <button class="color-btn" data-color="#94a3b8" style="background:#94a3b8"
+                                title="Gris Antártida"></button>
+                            <button class="color-btn" data-color="#000000" style="background:#000000"
+                                title="Negro"></button>
+                            <button class="color-btn" data-color="#f8fafc" style="background:#f8fafc"
+                                title="Blanco"></button>
+                            <button class="color-btn" data-color="#d97706" style="background:#d97706"
+                                title="Dorado Oscuro"></button>
+                            <button class="color-btn" data-color="#b91c1c" style="background:#b91c1c"
+                                title="Rojo Oscuro"></button>
+                            <button class="color-btn" data-color="#15803d" style="background:#15803d"
+                                title="Verde Bosque"></button>
+                            <button class="color-btn" data-color="#7e22ce" style="background:#7e22ce"
+                                title="Púrpura Oscuro"></button>
+                            <button class="color-btn" data-color="#111827" style="background:#111827"
+                                title="Gris Noche"></button>
+                            <button class="color-btn" data-color="#9a3412" style="background:#9a3412"
+                                title="Naranja Oscuro"></button>
+                            <button class="color-btn" data-color="#3f6212" style="background:#3f6212"
+                                title="Oliva Oscuro"></button>
+                            <button class="color-btn" data-color="#0f766e" style="background:#0f766e"
+                                title="Turquesa Oscuro"></button>
+                            <button class="color-btn" data-color="#be185d" style="background:#be185d"
+                                title="Rosa Oscuro"></button>
                         </div>
                     </div>
 
                     <div class="form-group row" style="margin-top: 10px;">
                         <label>Cuerpo:</label>
                         <select id="select-body" class="custom-select" style="flex:1;">
-                            <option value="masculino">Masculino (Ancho)</option>
-                            <option value="femenino">Femenino (Estrecho)</option>
+                            <option value="masculino_delgado">Masculino (Delgado)</option>
+                            <option value="masculino_musculoso">Masculino (Musculoso)</option>
+                            <option value="masculino_robusto">Masculino (Robusto)</option>
+                            <option value="masculino_alto">Masculino (Alto)</option>
+                            <option value="femenino_delgado">Femenino (Delgado)</option>
+                            <option value="femenino_atletico">Femenino (Atlético)</option>
+                            <option value="femenino_curvilineo">Femenino (Curvilíneo)</option>
+                            <option value="femenino_alta">Femenino (Alta)</option>
                         </select>
                     </div>
                     <div class="form-group row">
@@ -248,6 +311,31 @@
                             <option value="puntiagudo">Puntiagudo (Anime)</option>
                             <option value="coleta">Recogido / Coleta</option>
                             <option value="calvo">Sin Cabello (Calvo)</option>
+                            <option value="rapado">Rapado / Buzz Cut</option>
+                            <option value="afro">Afro Clásico</option>
+                            <option value="raya_lado">Raya al lado (Formal)</option>
+                            <option value="hongo">Corte de Hongo</option>
+                            <option value="trenzas">Trenzas / Braids</option>
+                            <option value="pompadour">Copete / Pompadour</option>
+                            <option value="mohawk">Cresta / Mohawk</option>
+                            <option value="desordenado">Desordenado / Messy</option>
+                            <option value="ondas">Ondulado Medio</option>
+                            <option value="bun">Chongo / Man Bun</option>
+                        </select>
+                    </div>
+                    <div class="form-group row">
+                        <label>V. Facial:</label>
+                        <select id="select-facialhair" class="custom-select" style="flex:1;">
+                            <option value="ninguno">Ninguno</option>
+                            <option value="candado">Barba Candado</option>
+                            <option value="completa">Barba Completa</option>
+                            <option value="bigote">Bigote Clásico</option>
+                            <option value="bigote_fino">Bigote Fino (Lápiz)</option>
+                            <option value="chivo">Perilla / Chivo</option>
+                            <option value="sombreado">Sombreado 5 o'clock</option>
+                            <option value="leñador">Barba Larga (Leñador)</option>
+                            <option value="mosquetero">Mosquetero</option>
+                            <option value="patillas">Patillas Anchas</option>
                         </select>
                     </div>
                     <div class="form-group row">
@@ -263,8 +351,20 @@
                         <select id="select-accessory" class="custom-select" style="flex:1;">
                             <option value="ninguno">Ninguno</option>
                             <option value="gafas">Gafas de marco oscuro</option>
-                            <option value="headset">Auriculares (Headset)</option>
-                            <option value="gorra">Gorra</option>
+                            <option value="gafas_redondas">Gafas redondas (Harry P.)</option>
+                            <option value="gafas_sol">Gafas de sol (Aviador)</option>
+                            <option value="gafas_cuadradas">Gafas cuadradas (Nerd)</option>
+                            <option value="gafas_lectura">Gafas de Lectura (Media luna)</option>
+                            <option value="headset">Auricular / Headset Gamer</option>
+                            <option value="auriculares_nuca">Auriculares (Banda de nuca)</option>
+                            <option value="gorra">Gorra deportiva (Delante)</option>
+                            <option value="gorra_atras">Gorra deportiva (Atrás)</option>
+                            <option value="sombrero">Sombrero Fedora</option>
+                            <option value="boina">Boina Francesa</option>
+                            <option value="lanyard">Gafete / Lanyard de oficina</option>
+                            <option value="corbata_moño">Corbata de Moño</option>
+                            <option value="bufanda">Bufanda de invierno</option>
+                            <option value="mascarilla">Mascarilla Quirúrgica</option>
                         </select>
                     </div>
                 </div>
@@ -307,6 +407,46 @@
                 <button id="btn-sys-tutor" class="btn lg-btn"
                     style="height: 60px; font-size: 18px; background: rgba(16, 185, 129, 0.2); border-color: #10b981; color: #10b981;">Sistema
                     Tutores</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PC Desktop OS Modal -->
+    <div id="pc-os-modal" class="modal-backdrop hidden" style="z-index: 250;">
+        <div class="pc-desktop anime-pop flex-col">
+            <div class="pc-taskbar flex-row space-between align-center">
+                <div class="pc-start-btn">EduOS</div>
+                <div class="pc-time" id="pc-time-display">12:00 PM</div>
+                <button id="btn-close-pc" class="btn btn-icon"
+                    style="background: rgba(239, 68, 68, 0.8); color: white; width: 30px; height: 30px; font-size: 14px; margin-right: 5px;">X</button>
+            </div>
+            <div class="pc-workspace flex-1">
+                <div class="pc-icon-grid">
+                    <div class="pc-icon" data-app="archivos">
+                        <div class="icon-img">📁</div>
+                        <span>Archivos</span>
+                    </div>
+                    <div class="pc-icon" data-app="tareas">
+                        <div class="icon-img">✅</div>
+                        <span>Tareas</span>
+                    </div>
+                    <div class="pc-icon" data-app="calendario">
+                        <div class="icon-img">📅</div>
+                        <span>Calendario</span>
+                    </div>
+                    <div class="pc-icon" data-app="configuracion">
+                        <div class="icon-img">⚙️</div>
+                        <span>Config</span>
+                    </div>
+                    <div class="pc-icon" data-app="admin">
+                        <div class="icon-img">📊</div>
+                        <span>Admin</span>
+                    </div>
+                    <div class="pc-icon" data-app="tutor">
+                        <div class="icon-img">🎓</div>
+                        <span>Tutor</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

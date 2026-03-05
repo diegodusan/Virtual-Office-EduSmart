@@ -705,7 +705,13 @@ class BasePlayer {
         const shirt = this.props.shirt || '#3b82f6';
         const pants = this.props.pants || '#1e293b';
 
-        const isFemale = this.props.body === 'femenino';
+        const bodyType = this.props.body || 'masculino_delgado';
+        const isFemale = bodyType.startsWith('femenino');
+        const isRobusto = bodyType.includes('robusto') || bodyType.includes('curvilineo') || bodyType.includes('musculoso');
+        const isCurvilinea = bodyType.includes('curvilineo');
+        const isAlto = bodyType.includes('alto') || bodyType.includes('alta');
+        const isMusculoso = bodyType.includes('musculoso');
+
         const hairStyle = this.props.hairStyle || 'corto';
         const outfit = this.props.outfit || 'casual';
         const acc = this.props.accessory || 'ninguno';
@@ -733,41 +739,47 @@ class BasePlayer {
 
         // --- ANIMACIÓN DE CAMINADO ---
         // Frames: 0 (Idle), 1 (Right leg up), 2 (Idle), 3 (Left leg up), 4 (Sitting)
+        let baseHeight = isAlto ? 18 : 14;
         let legL_Y = cy + 4, legR_Y = cy + 4;
-        let legL_H = 14, legR_H = 14;
-        let armL_Y = cy - 8, armR_Y = cy - 8;
-        let pOffset = isFemale ? 1 : 0; // Mujer camina con piernas poco más juntas
+        let legL_H = baseHeight, legR_H = baseHeight;
+        let armL_Y = cy - (isAlto ? 10 : 8), armR_Y = cy - (isAlto ? 10 : 8);
 
         if (this.frame === 1) { legL_Y -= 4; legL_H -= 2; armR_Y -= 2; }
         else if (this.frame === 3) { legR_Y -= 4; legR_H -= 2; armL_Y -= 2; }
         else if (this.frame === 4) { legL_Y -= 2; legR_Y -= 2; legL_H = 10; legR_H = 10; }
 
-        // 2. Cabello Trasero (Si es largo o coleta)
+        // 2. Cabello Trasero ... (Omitido visualmente igual, anclaje)
+        let hairYOffset = isAlto ? 4 : 0;
         if (hairStyle === 'largo') {
-            drawRoundedRect(cx - 15, cy - 25, 30, 35, 4, hair);
+            drawRoundedRect(cx - 15, cy - 25 - hairYOffset, 30, 35, 4, hair);
         } else if (hairStyle === 'coleta') {
-            drawRoundedRect(cx - 12, cy - 25, 24, 25, 6, hair); // Coleta base
-            drawRoundedRect(cx - 8, cy - 5, 16, 12, 4, hair); // Cola
+            drawRoundedRect(cx - 12, cy - 25 - hairYOffset, 24, 25, 6, hair);
+            drawRoundedRect(cx - 8, cy - 5 - hairYOffset, 16, 12, 4, hair);
         }
 
         // 3. Brazo Trasero (Derecho)
-        let armW = isFemale ? 5 : 7;
-        let shoulderX = isFemale ? 10 : 12;
-        if (this.frame !== 4) drawRoundedRect(cx + shoulderX - armW, armR_Y, armW, 14, skin); // Brazo Piel
-        if (this.frame !== 4) drawRoundedRect(cx + shoulderX - armW, armR_Y, armW, 8, shirt); // Manga
+        let armW = isMusculoso ? 9 : (isFemale ? 5 : (isRobusto ? 8 : 6));
+        let torsoW = isMusculoso ? 24 : (isRobusto ? 22 : (isCurvilinea ? 18 : (isFemale ? 14 : 18)));
+        let shoulderX = torsoW / 2 + (isMusculoso ? 3 : 2);
+
+        let armLength = isAlto ? 18 : 14;
+        let sleeveLength = isAlto ? 10 : 8;
+
+        if (this.frame !== 4) drawRoundedRect(cx + shoulderX - armW, armR_Y, armW, armLength, skin); // Brazo Piel
+        if (this.frame !== 4) drawRoundedRect(cx + shoulderX - armW, armR_Y, armW, sleeveLength, shirt); // Manga
 
         // 4. Piernas (Pantalones o Falda)
-        let legW = isFemale ? 6 : 7;
-        let legSpace = isFemale ? 4 : 6;
+        let legW = isMusculoso ? 8 : (isFemale ? 6 : (isRobusto ? 8 : 7));
+        let legSpace = isCurvilinea ? 6 : (isFemale ? 4 : (isRobusto || isMusculoso ? 8 : 6));
 
         let pColor = pants;
-        if (outfit === 'vestido') pColor = skin; // Si es vestido, piernas descubiertas o medias
+        if (outfit === 'vestido') pColor = skin;
 
         // Pierna Derecha (Atrás)
-        let rxOffset = cx + legSpace / 2 + (this.frame === 4 ? 4 : 0);
+        let rxOffset = cx + legSpace / 2 + (this.frame === 4 ? 4 : 0) - (isRobusto || isMusculoso ? 2 : 0);
         drawRoundedRect(rxOffset, legR_Y, legW, legR_H, 3, pColor);
         // Pierna Izquierda (Frente)
-        let lxOffset = cx - legSpace / 2 - legW - (this.frame === 4 ? 2 : 0);
+        let lxOffset = cx - legSpace / 2 - legW - (this.frame === 4 ? 2 : 0) + (isRobusto || isMusculoso ? 2 : 0);
         drawRoundedRect(lxOffset, legL_Y, legW, legL_H, 3, pColor);
 
         // Zapatos
@@ -776,9 +788,8 @@ class BasePlayer {
         drawRoundedRect(lxOffset - 1, legL_Y + legL_H - 4, legW + 2, 5, 2, shoeColor);
 
         // 5. Torso y Ropa
-        let torsoW = isFemale ? 16 : 20;
-        let torsoY = cy - 12;
-        let torsoH = 16;
+        let torsoY = cy - (isAlto ? 16 : 12);
+        let torsoH = isAlto ? 20 : 16;
 
         if (outfit === 'vestido') {
             // Falda/Vestido (triangular)
@@ -795,13 +806,14 @@ class BasePlayer {
             drawRect(cx - torsoW / 2, torsoY + 10, torsoW, 3, '#0f172a', '#0f172a', 0);
         } else {
             // Torso Normal
-            drawRoundedRect(cx - torsoW / 2, torsoY, torsoW, torsoH, 2, shirt);
+            drawRoundedRect(cx - torsoW / 2, torsoY, torsoW, torsoH, isCurvilinea ? 6 : 2, shirt);
             if (outfit === 'formal') {
                 // Saco Abierto
                 drawRect(cx - torsoW / 2, torsoY, 4, torsoH, '#0f172a', '#0f172a', 0);
                 drawRect(cx + torsoW / 2 - 4, torsoY, 4, torsoH, '#0f172a', '#0f172a', 0);
-                // Corbata
-                drawRect(cx - 2, torsoY, 4, 10, '#dc2626', '#0f172a', 1);
+                // Corbata (dinamica con pantalones)
+                let tieLength = isAlto ? 14 : 10;
+                drawRect(cx - 2, torsoY, 4, tieLength, pants, '#0f172a', 1);
             }
         }
 
@@ -811,12 +823,12 @@ class BasePlayer {
             drawRoundedRect(cx - torsoW / 2 - 2, cy - 8, armW, 10, shirt);
             drawRoundedRect(cx - torsoW / 2 - 2, cy + 2, armW, 5, skin); // Mano tocando teclado
         } else {
-            drawRoundedRect(cx - torsoW / 2 - 2, armL_Y, armW, 14, skin);
-            drawRoundedRect(cx - torsoW / 2 - 2, armL_Y, armW, 8, shirt);
+            drawRoundedRect(cx - torsoW / 2 - 2, armL_Y, armW, armLength, skin);
+            drawRoundedRect(cx - torsoW / 2 - 2, armL_Y, armW, sleeveLength, shirt);
         }
 
         // 7. CABEZA
-        let headY = cy - 22;
+        let headY = cy - (isAlto ? 26 : 22);
         // Orejas
         drawArc(cx - 13, headY + 2, 4, skin);
         drawArc(cx + 13, headY + 2, 4, skin);
@@ -850,30 +862,87 @@ class BasePlayer {
             ctx.beginPath(); ctx.arc(cx + 9, headY + 3, 3, 0, Math.PI * 2); ctx.fill();
         }
 
+        // VELLO FACIAL
+        if (this.props.facialHair && this.props.facialHair !== 'ninguno') {
+            ctx.fillStyle = hair; // Mismo color que el cabello
+            if (this.props.facialHair === 'candado') {
+                drawRoundedRect(cx - 6, headY + 6, 12, 6, 2, hair, 'transparent', 0); // Barba
+                drawRect(cx - 5, headY + 2, 10, 2, hair, 'transparent', 0); // Bigote
+            } else if (this.props.facialHair === 'completa') {
+                drawRoundedRect(cx - 13, headY + 4, 26, 8, 4, hair, 'transparent', 0);
+            } else if (this.props.facialHair === 'bigote') {
+                drawRoundedRect(cx - 6, headY + 2, 12, 3, 1, hair, 'transparent', 0);
+            } else if (this.props.facialHair === 'bigote_fino') {
+                drawRect(cx - 8, headY + 2, 16, 1, hair, 'transparent', 0);
+            } else if (this.props.facialHair === 'chivo') {
+                drawRoundedRect(cx - 4, headY + 6, 8, 8, 2, hair, 'transparent', 0); // Perilla inferior
+            } else if (this.props.facialHair === 'sombreado') {
+                drawRoundedRect(cx - 13, headY + 4, 26, 8, 4, 'rgba(0,0,0,0.15)', 'transparent', 0); // Sombreado translucido
+            } else if (this.props.facialHair === 'leñador') {
+                drawRoundedRect(cx - 14, headY + 4, 28, 14, 6, hair, 'transparent', 0); // Barba enorme
+            } else if (this.props.facialHair === 'mosquetero') {
+                drawRect(cx - 8, headY + 1, 16, 2, hair, 'transparent', 0);
+                drawRoundedRect(cx - 2, headY + 6, 4, 6, 1, hair, 'transparent', 0);
+            } else if (this.props.facialHair === 'patillas') {
+                drawRect(cx - 13, headY - 2, 4, 10, hair, 'transparent', 0);
+                drawRect(cx + 9, headY - 2, 4, 10, hair, 'transparent', 0);
+            }
+        }
+
         // 9. CABELLO FRONTAL
         if (hairStyle !== 'calvo') {
             if (hairStyle === 'corto' || hairStyle === 'puntiagudo') {
                 drawRoundedRect(cx - 14, headY - 14, 28, 10, 5, hair); // Flequillo base
                 if (hairStyle === 'puntiagudo') {
-                    // Puntas arriba
                     ctx.fillStyle = hair; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2;
                     ctx.beginPath();
                     ctx.moveTo(cx - 10, headY - 14); ctx.lineTo(cx - 5, headY - 24); ctx.lineTo(cx, headY - 14);
                     ctx.moveTo(cx, headY - 14); ctx.lineTo(cx + 6, headY - 26); ctx.lineTo(cx + 10, headY - 14);
                     ctx.fill(); ctx.stroke();
                 } else {
-                    // Recorte corto al lado
                     drawRect(cx - 14, headY - 8, 4, 8, hair, '#0f172a', 0);
                     drawRect(cx + 10, headY - 8, 4, 8, hair, '#0f172a', 0);
                 }
             } else if (hairStyle === 'largo' || hairStyle === 'coleta') {
-                // Flequillo dividido
                 drawRoundedRect(cx - 14, headY - 14, 14, 12, 4, hair);
                 drawRoundedRect(cx + 2, headY - 14, 12, 10, 4, hair);
-
-                // Mechones laterales
                 drawRoundedRect(cx - 15, headY - 4, 6, 12, 2, hair);
                 drawRoundedRect(cx + 10, headY - 4, 5, 12, 2, hair);
+            } else if (hairStyle === 'rapado') {
+                drawRoundedRect(cx - 13, headY - 13, 26, 6, 4, hair); // Base muy corta
+            } else if (hairStyle === 'afro') {
+                drawArc(cx, headY - 14, 16, hair); // Esfera central
+                drawArc(cx - 10, headY - 8, 12, hair); // Lados
+                drawArc(cx + 10, headY - 8, 12, hair);
+            } else if (hairStyle === 'raya_lado') {
+                drawRoundedRect(cx - 14, headY - 14, 18, 10, 4, hair); // Mayor parte a la izq
+                drawRoundedRect(cx + 6, headY - 14, 8, 8, 2, hair); // Poca parte a la der
+            } else if (hairStyle === 'hongo') {
+                drawArc(cx, headY - 8, 15, hair, '#0f172a', 2, Math.PI, 0); // Semi-circulo perfecto
+            } else if (hairStyle === 'trenzas') {
+                drawRoundedRect(cx - 14, headY - 14, 28, 8, 4, hair); // Base
+                drawRect(cx - 12, headY - 6, 4, 16, hair); // Trenza izq
+                drawRect(cx + 8, headY - 6, 4, 16, hair); // Trenza der
+            } else if (hairStyle === 'pompadour') {
+                drawRoundedRect(cx - 12, headY - 14, 24, 8, 4, hair); // Base
+                drawRoundedRect(cx - 10, headY - 22, 20, 14, 10, hair); // Bulto arriba
+            } else if (hairStyle === 'mohawk') {
+                drawRoundedRect(cx - 4, headY - 24, 8, 20, 4, hair); // Cresta central larga
+            } else if (hairStyle === 'desordenado') {
+                drawRoundedRect(cx - 14, headY - 14, 28, 10, 5, hair);
+                ctx.fillStyle = hair; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(cx - 12, headY - 14); ctx.lineTo(cx - 16, headY - 20); ctx.lineTo(cx - 8, headY - 14);
+                ctx.moveTo(cx + 2, headY - 14); ctx.lineTo(cx + 8, headY - 22); ctx.lineTo(cx + 12, headY - 14);
+                ctx.fill(); ctx.stroke();
+            } else if (hairStyle === 'ondas') {
+                drawRoundedRect(cx - 15, headY - 14, 30, 10, 5, hair);
+                drawArc(cx - 12, headY - 4, 6, hair);
+                drawArc(cx + 12, headY - 4, 6, hair);
+                drawArc(cx, headY - 4, 5, hair);
+            } else if (hairStyle === 'bun') {
+                drawRoundedRect(cx - 14, headY - 14, 28, 10, 5, hair); // Pegado
+                drawArc(cx, headY - 18, 6, hair); // Chongo superior
             }
         }
 
@@ -881,21 +950,74 @@ class BasePlayer {
         if (acc === 'gafas') {
             ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2;
             ctx.fillStyle = 'rgba(255,255,255,0.4)';
-            drawRoundedRect(cx - 10, headY - 3, 8, 6, 2, ctx.fillStyle, '#0f172a', 2); // Lente Izq
-            drawRoundedRect(cx + 2, headY - 3, 8, 6, 2, ctx.fillStyle, '#0f172a', 2); // Lente Der
-            drawRect(cx - 2, headY - 1, 4, 2, '#0f172a', '#0f172a', 0); // Puente
+            drawRoundedRect(cx - 10, headY - 3, 8, 6, 2, ctx.fillStyle, '#0f172a', 2);
+            drawRoundedRect(cx + 2, headY - 3, 8, 6, 2, ctx.fillStyle, '#0f172a', 2);
+            drawRect(cx - 2, headY - 1, 4, 2, '#0f172a', '#0f172a', 0);
+        } else if (acc === 'gafas_redondas') {
+            ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2;
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            drawArc(cx - 6, headY, 4, ctx.fillStyle, '#0f172a', 2);
+            drawArc(cx + 6, headY, 4, ctx.fillStyle, '#0f172a', 2);
+            drawRect(cx - 2, headY - 1, 4, 2, '#0f172a', '#0f172a', 0);
+        } else if (acc === 'gafas_sol') {
+            ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2;
+            ctx.fillStyle = 'rgba(0,0,0,0.8)';
+            drawArc(cx - 6, headY, 4, ctx.fillStyle, '#0f172a', 2);
+            drawArc(cx + 6, headY, 4, ctx.fillStyle, '#0f172a', 2);
+            drawRect(cx - 2, headY - 1, 4, 2, '#0f172a', '#0f172a', 0);
+        } else if (acc === 'gafas_cuadradas') {
+            ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 3; // Lente grueso
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            drawRect(cx - 11, headY - 4, 9, 7, ctx.fillStyle, '#0f172a', 3);
+            drawRect(cx + 2, headY - 4, 9, 7, ctx.fillStyle, '#0f172a', 3);
+            drawRect(cx - 2, headY - 1, 4, 2, '#0f172a', '#0f172a', 0);
+        } else if (acc === 'gafas_lectura') {
+            ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2;
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            // Medias lunas
+            drawArc(cx - 6, headY + 1, 4, ctx.fillStyle, '#0f172a', 2, 0, Math.PI);
+            drawArc(cx + 6, headY + 1, 4, ctx.fillStyle, '#0f172a', 2, 0, Math.PI);
+            drawRect(cx - 2, headY + 1, 4, 1, '#0f172a', '#0f172a', 0);
         } else if (acc === 'headset') {
-            // Banda
-            drawArc(cx, headY - 14, 14, 'transparent', '#0f172a', 3, Math.PI, 0);
-            // Auriculares
-            drawRoundedRect(cx - 16, headY - 5, 4, 10, 3, '#1e293b');
-            drawRoundedRect(cx + 12, headY - 5, 4, 10, 3, '#1e293b');
-            // Micro
-            drawRect(cx - 12, headY + 2, 8, 2, '#64748b', 'transparent', 0);
-            drawArc(cx - 4, headY + 3, 2, '#1e293b');
+            drawArc(cx, headY - 14, 14, 'transparent', '#0f172a', 3, Math.PI, 0); // Diadema
+            drawRoundedRect(cx - 16, headY - 5, 4, 10, 3, '#10b981'); // Auriculares verdes
+            drawRoundedRect(cx + 12, headY - 5, 4, 10, 3, '#10b981');
+            drawRect(cx - 12, headY + 2, 8, 2, '#64748b', 'transparent', 0); // Microfono
+            drawArc(cx - 4, headY + 3, 2, '#eab308'); // Led
+        } else if (acc === 'auriculares_nuca') {
+            drawArc(cx, headY + 6, 15, 'transparent', '#1e293b', 3, 0, Math.PI); // Por detras de cuello (aprox renderizado bajo menton)
+            drawRoundedRect(cx - 15, headY - 2, 3, 8, 2, '#cbd5e1'); // Auriculares in-ear asomando
+            drawRoundedRect(cx + 12, headY - 2, 3, 8, 2, '#cbd5e1');
         } else if (acc === 'gorra') {
             drawRoundedRect(cx - 14, headY - 16, 28, 8, 4, shirt); // Base gorra (mismo color camisa)
-            drawRect(cx - 16, headY - 8, 20, 3, shirt, '#0f172a', 2); // Visera
+            drawRect(cx - 16, headY - 8, 20, 3, shirt, '#0f172a', 2); // Visera al frente
+        } else if (acc === 'gorra_atras') {
+            drawRoundedRect(cx - 14, headY - 16, 28, 8, 4, shirt); // Base
+            drawArc(cx + 8, headY - 10, 6, shirt, '#0f172a', 2); // Visera atras
+        } else if (acc === 'sombrero') {
+            drawRoundedRect(cx - 12, headY - 22, 24, 12, 2, '#451a03'); // Copa
+            drawRect(cx - 18, headY - 10, 36, 3, '#451a03', '#0f172a', 2); // Ala ancha
+            drawRect(cx - 12, headY - 12, 24, 2, '#ef4444', 'transparent', 0); // Cinta roja
+        } else if (acc === 'boina') {
+            drawRoundedRect(cx - 14, headY - 18, 24, 8, 6, '#be185d'); // Boina
+            drawRect(cx + 4, headY - 20, 2, 2, '#0f172a', 'transparent', 0); // Pitutito
+        } else if (acc === 'lanyard') {
+            drawRect(cx - torsoW / 2 + 2, torsoY, 2, torsoH - 4, '#3b82f6', 'transparent', 0);
+            drawRect(cx + torsoW / 2 - 4, torsoY, 2, torsoH - 4, '#3b82f6', 'transparent', 0);
+            drawRect(cx - torsoW / 2 + 2, torsoY + torsoH - 5, torsoW - 4, 2, '#3b82f6', 'transparent', 0);
+            drawRect(cx - 3, torsoY + torsoH - 6, 6, 8, '#fff', '#0f172a', 1);
+        } else if (acc === 'corbata_moño') {
+            drawRect(cx - 4, torsoY + 1, 8, 4, '#ef4444', '#0f172a', 1); // Centro moño
+            ctx.fillStyle = '#ef4444'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(cx - 4, torsoY + 3); ctx.lineTo(cx - 8, torsoY + 1); ctx.lineTo(cx - 8, torsoY + 5); ctx.closePath(); ctx.fill(); ctx.stroke(); // Ala izq
+            ctx.beginPath(); ctx.moveTo(cx + 4, torsoY + 3); ctx.lineTo(cx + 8, torsoY + 1); ctx.lineTo(cx + 8, torsoY + 5); ctx.closePath(); ctx.fill(); ctx.stroke(); // Ala der
+        } else if (acc === 'bufanda') {
+            drawRoundedRect(cx - torsoW / 2, torsoY - 2, torsoW, 6, 2, '#ca8a04'); // Alrededor cuello
+            drawRoundedRect(cx + 2, torsoY - 2, 6, 12, 2, '#ca8a04'); // Colgando
+        } else if (acc === 'mascarilla') {
+            drawRoundedRect(cx - 8, headY + 2, 16, 10, 4, '#38bdf8'); // Tela
+            drawRect(cx - 12, headY + 4, 4, 1, '#1e293b', 'transparent', 0); // Tira izq
+            drawRect(cx + 8, headY + 4, 4, 1, '#1e293b', 'transparent', 0); // Tira der
         }
 
         this.drawLabel(ctx);
@@ -993,7 +1115,7 @@ class LocalPlayer extends BasePlayer {
                 }
 
                 if (input.isPlatform()) {
-                    document.getElementById('system-choice-modal').classList.remove('hidden');
+                    document.getElementById('pc-os-modal').classList.remove('hidden');
                     input.consumePlatform();
                 }
             }
@@ -1195,6 +1317,7 @@ class UIController {
 
                     if (data.props.body) document.getElementById('select-body').value = data.props.body;
                     if (data.props.hairStyle) document.getElementById('select-hairstyle').value = data.props.hairStyle;
+                    if (data.props.facialHair) document.getElementById('select-facialhair').value = data.props.facialHair;
                     if (data.props.outfit) document.getElementById('select-outfit').value = data.props.outfit;
                     if (data.props.accessory) document.getElementById('select-accessory').value = data.props.accessory;
                 }
@@ -1214,15 +1337,16 @@ class UIController {
     updatePreviewData() {
         this.p.nickname = document.getElementById('input-nickname').value || 'Invitado';
         this.p.role = document.getElementById('select-role').value;
-        this.p.props.skin = document.querySelector('#picker-skin .active').dataset.color;
-        this.p.props.hair = document.querySelector('#picker-hair .active').dataset.color;
-        this.p.props.shirt = document.querySelector('#picker-shirt .active').dataset.color;
-        this.p.props.pants = document.querySelector('#picker-pants .active').dataset.color;
+        this.p.props.skin = document.querySelector('#picker-skin .active')?.dataset?.color || '#ffdbac';
+        this.p.props.hair = document.querySelector('#picker-hair .active')?.dataset?.color || '#27272a';
+        this.p.props.shirt = document.querySelector('#picker-shirt .active')?.dataset?.color || '#3b82f6';
+        this.p.props.pants = document.querySelector('#picker-pants .active')?.dataset?.color || '#1e293b';
 
-        this.p.props.body = document.getElementById('select-body').value;
-        this.p.props.hairStyle = document.getElementById('select-hairstyle').value;
-        this.p.props.outfit = document.getElementById('select-outfit').value;
-        this.p.props.accessory = document.getElementById('select-accessory').value;
+        this.p.props.body = document.getElementById('select-body').value || 'masculino_delgado';
+        this.p.props.hairStyle = document.getElementById('select-hairstyle').value || 'corto';
+        this.p.props.facialHair = document.getElementById('select-facialhair').value || 'ninguno';
+        this.p.props.outfit = document.getElementById('select-outfit').value || 'casual';
+        this.p.props.accessory = document.getElementById('select-accessory').value || 'ninguno';
 
         this.renderAvatarPreview();
     }
@@ -1233,10 +1357,20 @@ class UIController {
         let ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+        ctx.save();
+        ctx.scale(2, 2);
+
         let tempX = this.p.x; let tempY = this.p.y;
-        this.p.x = 50; this.p.y = 80;
+        this.p.x = 25; this.p.y = 40;
+
+        let oldName = this.p.nickname;
+        this.p.nickname = "";
+
         this.p.render(ctx);
+
+        this.p.nickname = oldName;
         this.p.x = tempX; this.p.y = tempY;
+        ctx.restore();
     }
 
     bindEvents() {
@@ -1249,7 +1383,7 @@ class UIController {
             });
         });
 
-        let inputs = ['input-nickname', 'select-role', 'select-body', 'select-hairstyle', 'select-outfit', 'select-accessory'];
+        let inputs = ['input-nickname', 'select-role', 'select-body', 'select-hairstyle', 'select-facialhair', 'select-outfit', 'select-accessory'];
         inputs.forEach(id => {
             document.getElementById(id).addEventListener('change', () => this.updatePreviewData());
             document.getElementById(id).addEventListener('input', () => this.updatePreviewData());
@@ -1297,6 +1431,54 @@ class UIController {
             document.getElementById('platform-frame').src = url;
             document.getElementById('webview-modal').classList.remove('hidden');
         };
+
+        // --- PC OS DESKTOP LOGIC ---
+        document.getElementById('btn-close-pc').addEventListener('click', () => {
+            document.getElementById('pc-os-modal').classList.add('hidden');
+            window.focus();
+        });
+
+        document.querySelectorAll('.pc-icon').forEach(icon => {
+            icon.addEventListener('click', (e) => {
+                let app = e.currentTarget.dataset.app;
+                if (app === 'archivos') {
+                    document.getElementById('fichero-modal').classList.remove('hidden');
+                } else if (app === 'tareas') {
+                    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                    let targetNav = document.querySelector('.nav-item[data-target="view-tasks"]');
+                    if (targetNav) targetNav.classList.add('active');
+                    this.switchView('view-tasks');
+                    document.getElementById('pc-os-modal').classList.add('hidden');
+                } else if (app === 'calendario') {
+                    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                    let targetNav = document.querySelector('.nav-item[data-target="view-calendar"]');
+                    if (targetNav) targetNav.classList.add('active');
+                    this.switchView('view-calendar');
+                    document.getElementById('pc-os-modal').classList.add('hidden');
+                } else if (app === 'configuracion') {
+                    document.getElementById('profile-modal').classList.remove('hidden');
+                    document.getElementById('pc-os-modal').classList.add('hidden');
+                } else if (app === 'admin') {
+                    openWebView("https://edusmart.dufyasesorias.com/dashboard", "Sistema Administrativo - EduSmart");
+                    document.getElementById('pc-os-modal').classList.add('hidden');
+                } else if (app === 'tutor') {
+                    openWebView("https://tutor.dufyasesorias.com/dashboard", "Sistema Tutores - Dufy Asesorías");
+                    document.getElementById('pc-os-modal').classList.add('hidden');
+                }
+            });
+        });
+
+        setInterval(() => {
+            let el = document.getElementById('pc-time-display');
+            if (el) {
+                let d = new Date();
+                let hrs = d.getHours(); let ampm = hrs >= 12 ? 'PM' : 'AM';
+                hrs = hrs % 12; hrs = hrs ? hrs : 12;
+                let mins = d.getMinutes().toString().padStart(2, '0');
+                el.textContent = `${hrs}:${mins} ${ampm}`;
+            }
+        }, 1000);
+        // ---------------------------
 
         document.getElementById('btn-sys-admin').addEventListener('click', () => {
             openWebView("https://edusmart.dufyasesorias.com/dashboard", "Sistema Administrativo - EduSmart");
@@ -1707,14 +1889,26 @@ class NetworkController {
         const PROXIMITY_RADIUS = 180;
         const HYSTERESIS = 60;
 
+        let myRoom = this.map.getRoomAt(this.p.x, this.p.y);
+        let globalRooms = ['Sala Conferencias', 'Oficina TesiFive', 'Oficina Dufy', 'Oficina Reyes'];
+        let amIInGlobalRoom = myRoom && globalRooms.includes(myRoom.name);
+
         for (let id in this.remotePlayers) {
             let rp = this.remotePlayers[id];
-            const dist = Math.sqrt(Math.pow(this.p.x - rp.x, 2) + Math.pow(this.p.y - rp.y, 2));
+
+            let effectiveDist = Math.sqrt(Math.pow(this.p.x - rp.x, 2) + Math.pow(this.p.y - rp.y, 2));
+
+            if (amIInGlobalRoom) {
+                let rpRoom = this.map.getRoomAt(rp.x, rp.y);
+                if (rpRoom && rpRoom.name === myRoom.name) {
+                    effectiveDist = 0; // Force connection if in the same global room
+                }
+            }
 
             // Feedback visual en el canvas
-            rp.connectedDist = dist < (PROXIMITY_RADIUS + HYSTERESIS);
+            rp.connectedDist = effectiveDist < (PROXIMITY_RADIUS + HYSTERESIS);
 
-            if (dist < PROXIMITY_RADIUS) {
+            if (effectiveDist < PROXIMITY_RADIUS) {
                 if (!this.activeCalls[id] && window.localStream) {
                     // Para evitar llamadas dobles (glare), solo el peer de menor ID inicia la llamada
                     if (this.peer.id < id) {
@@ -1734,7 +1928,7 @@ class NetworkController {
                         }
                     }
                 }
-            } else if (dist > PROXIMITY_RADIUS + HYSTERESIS) {
+            } else if (effectiveDist > PROXIMITY_RADIUS + HYSTERESIS) {
                 if (this.activeCalls[id]) {
                     this.removeRemoteVideoStream(id);
                 }
@@ -1794,40 +1988,48 @@ function mainLoop(timestamp) {
     _lastTime = timestamp;
     if (dt > 0.1) dt = 0.1;
 
-    // FPS
-    _frameCount++;
-    if (timestamp - _fpsTime >= 1000) {
-        document.getElementById('fps-counter').textContent = _frameCount;
-        _frameCount = 0; _fpsTime = timestamp;
-    }
-
-    if (document.getElementById('view-map').classList.contains('active')) {
-        if (window.gameEngineInputEnabled) {
-            _player.update(dt, _input);
-        } else {
-            _player.updateAnim(dt, false);
+    try {
+        // FPS
+        _frameCount++;
+        if (timestamp - _fpsTime >= 1000) {
+            document.getElementById('fps-counter').textContent = _frameCount;
+            _frameCount = 0; _fpsTime = timestamp;
         }
 
-        if (_sonora) _sonora.update(_player); // Pass player for distance check
+        if (document.getElementById('view-map').classList.contains('active')) {
+            if (window.gameEngineInputEnabled) {
+                _player.update(dt, _input);
+            } else {
+                _player.updateAnim(dt, false);
+            }
 
-        // Update remotes
-        if (_network) _network.update(dt);
+            if (_sonora) _sonora.update(_player); // Pass player for distance check
 
-        let rs = _map.floors.find(f => _player.x >= f.x * TILE && _player.x <= (f.x + f.w) * TILE && _player.y >= f.y * TILE && _player.y <= (f.y + f.h) * TILE);
-        document.getElementById('current-room').textContent = rs ? rs.name : 'Jardín Exterior';
+            // Update remotes
+            if (_network) _network.update(dt);
 
-        // Cambiar modo visual si está conectado a la red
-        if (_network && _network.socket.connected) {
-            document.getElementById('game-mode').textContent = "ONLINE";
+            let rs = _map.floors.find(f => _player.x >= f.x * TILE && _player.x <= (f.x + f.w) * TILE && _player.y >= f.y * TILE && _player.y <= (f.y + f.h) * TILE);
+            document.getElementById('current-room').textContent = rs ? rs.name : 'Jardín Exterior';
+
+            // Cambiar modo visual si está conectado a la red
+            if (_network && _network.socket.connected) {
+                document.getElementById('game-mode').textContent = "ONLINE";
+            }
+
+            // Camera follow (lerp)
+            _renderer.cx += (_player.x - _renderer.cx) * 5 * dt;
+            _renderer.cy += (_player.y - _renderer.cy) * 5 * dt;
+
+            let remotes = _network ? _network.getRenderList() : [];
+            _renderer.renderScene(_map, [_player, _sonora, ...remotes]);
         }
 
-        // Camera follow (lerp)
-        _renderer.cx += (_player.x - _renderer.cx) * 5 * dt;
-        _renderer.cy += (_player.y - _renderer.cy) * 5 * dt;
-
-        let remotes = _network ? _network.getRenderList() : [];
-        _renderer.renderScene(_map, [_player, _sonora, ...remotes]);
+        requestAnimationFrame(mainLoop);
+    } catch (e) {
+        console.error("Game Loop Render Error:", e);
+        _isRunning = false;
+        document.getElementById('error-overlay').style.display = 'block';
+        document.getElementById('error-overlay-msg').textContent = e.stack || e.message || String(e);
     }
-
-    requestAnimationFrame(mainLoop);
 }
+
