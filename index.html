@@ -813,15 +813,16 @@
 
                 <!-- PC INTERNAL APPS -->
                 <div id="pc-app-window" class="hidden flex-col"
-                    style="position:absolute; top:0; left:0; width:100%; height:100%; background:var(--bg-glass); display:flex; padding:15px; overflow-y:auto;">
+                    style="position:absolute; top:0; left:0; width:100%; height:100%; background:#0f172a; display:flex; padding:20px; overflow-y:auto; z-index: 10;">
 
                     <!-- FILE MANAGER INJECTED HERE -->
-                    <div id="pc-app-content-archivos" class="hidden flex-col flex-1 gap-md">
+                    <div id="pc-app-content-archivos" class="hidden flex-col flex-1 gap-md" style="font-size: 16px;">
                         <div class="flex-row space-between align-center">
-                            <h2 style="font-size:24px; margin:0; text-shadow:1px 1px 2px black;">📁 Gestor de Archivos
-                                (Directorio Remoto)</h2>
+                            <h2 style="font-size:26px; margin:0; color:#38bdf8; text-shadow:1px 1px 2px black;">📁
+                                Gestor de Archivos (Directorio Remoto)</h2>
                             <button id="btn-refresh-files" class="btn btn-primary"
-                                style="background:#10b981; border-color:#10b981;">↻ Cargar</button>
+                                style="background:#10b981; border-color:#10b981; font-size: 14px; padding: 8px 16px;">↻
+                                Cargar</button>
                         </div>
 
                         <!-- Hidden Upload Input -->
@@ -832,9 +833,9 @@
 
                             <!-- LEFT PANE: FOLDERS -->
                             <div class="glass-panel-strong flex-col"
-                                style="flex: 0 0 250px; padding: 10px; border-radius: 8px; overflow-y:auto; background: rgba(0,0,0,0.5);">
+                                style="flex: 0 0 280px; padding: 15px; border-radius: 8px; overflow-y:auto; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1);">
                                 <h3
-                                    style="margin-top:0; border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:5px; margin-bottom:10px; color:#facc15;">
+                                    style="margin-top:0; border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:8px; margin-bottom:15px; color:#facc15; font-size: 18px;">
                                     Carpetas</h3>
                                 <div id="drive-folders-list" class="flex-col gap-sm flex-1">
                                     <p style="color:var(--text-secondary); text-align:center; padding-top: 10px;">
@@ -844,9 +845,9 @@
 
                             <!-- RIGHT PANE: FILES -->
                             <div class="glass-panel-strong flex-col"
-                                style="flex: 1; padding: 10px; border-radius: 8px; overflow-y:auto; background: rgba(0,0,0,0.3);">
+                                style="flex: 1; padding: 15px; border-radius: 8px; overflow-y:auto; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1);">
                                 <h3 id="drive-files-header"
-                                    style="margin-top:0; border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:5px; margin-bottom:10px; color:#bfdbfe;">
+                                    style="margin-top:0; border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:8px; margin-bottom:15px; color:#bfdbfe; font-size: 18px;">
                                     Contenido de "Raíz"</h3>
                                 <div id="drive-files-list" class="flex-col gap-sm flex-1" style="position:relative;">
                                     <p style="color:var(--text-secondary); text-align:center; padding-top: 20px;">
@@ -914,7 +915,7 @@
     </div>
 
     <!-- WebView Modal -->
-    <div id="webview-modal" class="modal-backdrop hidden" style="z-index: 200;">
+    <div id="webview-modal" class="modal-backdrop hidden" style="z-index: 300;">
         <div class="glass-panel-strong anime-pop flex-col"
             style="width: 95%; height: 95%; max-width: 1400px; padding: 10px;">
             <div class="flex-row space-between align-center" style="margin-bottom: 10px; padding: 0 10px;">
