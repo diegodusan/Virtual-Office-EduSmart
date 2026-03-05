@@ -47,9 +47,6 @@
                 <li class="nav-item" data-target="view-files">
                     <span class="icon">📁</span> Archivos
                 </li>
-                <li class="nav-item" data-target="view-projection">
-                    <span class="icon">📽️</span> Proyectar
-                </li>
                 <li class="nav-item" data-target="view-settings">
                     <span class="icon">⚙️</span> Configuración
                 </li>
@@ -334,6 +331,9 @@
                     <div class="flex-row space-between align-center" style="margin-top: 8px;">
                         <button id="btn-fast-travel" class="btn btn-primary" style="font-size: 13px; padding: 6px;">🌍
                             Viaje Rápido</button>
+                        <button id="btn-open-projection-modal" class="btn btn-icon"
+                            style="font-size: 13px; padding: 6px; background:#6366f1; color:white; border-color:#4f46e5;">📽️
+                            Proyectar</button>
                         <button id="btn-toggle-bgm" class="btn" style="padding: 4px 8px; font-size:16px;"
                             title="Silenciar Música">🔊</button>
                     </div>
@@ -427,6 +427,35 @@
 
                 <!-- UI Overlay: Remotes (Simulados) -->
                 <div id="remote-videos-container" class="overlay center-left flex-col gap-md"></div>
+
+                <!-- Modal Flotante: Opciones de Proyección -->
+                <div id="projection-options-modal" class="modal-backdrop hidden" style="z-index: 250;">
+                    <div class="modal glass-panel-strong anime-pop flex-col gap-md"
+                        style="max-width: 650px; text-align: center;">
+                        <div class="modal-header flex-row space-between">
+                            <h2 style="margin:0;">📽️ Proyectar a la Sala</h2>
+                            <button id="btn-close-projection-modal" class="btn btn-icon">X</button>
+                        </div>
+                        <p style="color:var(--text-secondary); margin-bottom:10px;">
+                            Selecciona lo que deseas proyectar para que todos en tu zona actual puedan verlo en la
+                            pantalla principal.
+                        </p>
+                        <div class="flex-row gap-md justify-center">
+                            <button id="btn-project-whiteboard" class="btn"
+                                style="flex: 1; height: 100px; font-size: 16px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                                <span style="font-size:35px; margin-bottom:5px;">🖍️</span> Pizarra
+                            </button>
+                            <button id="btn-project-document" class="btn"
+                                style="flex: 1; height: 100px; font-size: 16px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                                <span style="font-size:35px; margin-bottom:5px;">📄</span> Documento
+                            </button>
+                            <button id="btn-project-screen" class="btn btn-primary"
+                                style="flex: 1; height: 100px; font-size: 16px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                                <span style="font-size:35px; margin-bottom:5px;">🖥️</span> Pantalla
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Mini Chat -->
                 <div id="chat-panel" class="overlay bottom-left full-height glass-panel flex-col">
@@ -528,32 +557,6 @@
                                     conexión...</p>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- VIEW: PROYECCIÓN -->
-            <section id="view-projection" class="view-section hidden flex-col">
-                <div class="glass-panel-strong flex-col gap-md"
-                    style="padding: 20px; height: 100%; display: flex; flex: 1; align-items:center;">
-                    <h2 style="margin-bottom:20px;">📽️ Panel de Proyección</h2>
-                    <p style="color:var(--text-secondary); text-align:center; max-width:500px; margin-bottom:30px;">
-                        Selecciona lo que deseas proyectar para que todos en tu zona actual puedan verlo en la pantalla
-                        principal.
-                    </p>
-                    <div class="flex-row gap-lg flex-wrap justify-center">
-                        <button id="btn-project-whiteboard" class="btn lg-btn"
-                            style="flex: 1; min-width: 200px; height: 80px; font-size: 18px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-                            <span style="font-size:30px; margin-bottom:5px;">🖍️</span> Pizarra
-                        </button>
-                        <button id="btn-project-document" class="btn lg-btn"
-                            style="flex: 1; min-width: 200px; height: 80px; font-size: 18px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-                            <span style="font-size:30px; margin-bottom:5px;">📄</span> Documento
-                        </button>
-                        <button id="btn-project-screen" class="btn btn-primary lg-btn"
-                            style="flex: 1; min-width: 200px; height: 80px; font-size: 18px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-                            <span style="font-size:30px; margin-bottom:5px;">🖥️</span> Pantalla
-                        </button>
                     </div>
                 </div>
             </section>

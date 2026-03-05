@@ -1982,20 +1982,34 @@ class NetworkController {
 
             this.peer.on('call', (call) => {
                 let isManual = call.metadata && call.metadata.type === 'phone_call';
+                let isScreenShare = call.metadata && call.metadata.type === 'screen_share';
+
                 if (isManual) {
                     this.manualPhoneCalls = this.manualPhoneCalls || {};
                     this.manualPhoneCalls[call.peer] = true;
                 }
 
-                if (window.localStream) {
-                    call.answer(window.localStream);
+                if (isScreenShare) {
+                    call.answer(); // only receive stream, don't send local
+                    call.on('stream', (remoteStream) => {
+                        localIsPresenter = false;
+                        document.getElementById('presentation-viewer').style.display = 'block';
+                        document.getElementById('presentation-content-area').innerHTML = `<video id="presentation-video" autoplay playsinline style="width:100%; height:100%; border:none; background:#000;"></video>`;
+                        document.getElementById('presentation-video').srcObject = remoteStream;
+                        document.getElementById('presentation-controls').classList.add('hidden');
+                        document.getElementById('presentation-viewer-hint').classList.remove('hidden');
+                    });
                 } else {
-                    call.answer();
-                }
+                    if (window.localStream) {
+                        call.answer(window.localStream);
+                    } else {
+                        call.answer();
+                    }
 
-                call.on('stream', (remoteStream) => {
-                    this.addRemoteVideoStream(call.peer, remoteStream);
-                });
+                    call.on('stream', (remoteStream) => {
+                        this.addRemoteVideoStream(call.peer, remoteStream);
+                    });
+                }
 
                 call.on('error', (err) => {
                     console.log("Call error:", err);
@@ -2524,6 +2538,36 @@ class NetworkController {
                 if (this.activeCalls[id]) {
                     this.removeRemoteVideoStream(id);
                 }
+            }
+
+            // Screen Share P2P Logic
+            if (localIsPresenter && window.presentationStream) {
+                this.presentationCalls = this.presentationCalls || {};
+
+                // If they are in the same room/proximity, beam the screen
+                if (effectiveDist === 0 || effectiveDist < PROXIMITY_RADIUS) {
+                    if (!this.presentationCalls[id]) {
+                        console.log("Sending presentation stream to", id);
+                        const presentationCall = this.peer.call(id, window.presentationStream, { metadata: { type: 'screen_share' } });
+                        if (presentationCall) {
+                            presentationCall.on('close', () => { delete this.presentationCalls[id]; });
+                            presentationCall.on('error', () => { delete this.presentationCalls[id]; });
+                            this.presentationCalls[id] = presentationCall;
+                        }
+                    }
+                } else if (effectiveDist > PROXIMITY_RADIUS + HYSTERESIS) {
+                    // They walked away from the room/screen share range
+                    if (this.presentationCalls[id]) {
+                        this.presentationCalls[id].close();
+                        delete this.presentationCalls[id];
+                    }
+                }
+            } else if (!localIsPresenter && this.presentationCalls) {
+                // Not presenting anymore, clean up all outbound screen calls
+                for (let pid in this.presentationCalls) {
+                    this.presentationCalls[pid].close();
+                }
+                this.presentationCalls = {};
             }
         }
     }
@@ -3536,6 +3580,11 @@ let localIsPresenter = false;
 window.startPresentation = function (url) {
     if (!url) return;
     localIsPresenter = true;
+
+    // Hide modal if open
+    let projModal = document.getElementById('projection-options-modal');
+    if (projModal) projModal.classList.add('hidden');
+
     document.getElementById('presentation-viewer').style.display = 'block';
     document.getElementById('presentation-content-area').innerHTML = `<iframe src="${url}" allowfullscreen style="width:100%; height:100%; border:none;"></iframe>`;
     document.getElementById('presentation-controls').classList.remove('hidden');
@@ -3550,6 +3599,11 @@ window.stopPresentation = function () {
     localIsPresenter = false;
     document.getElementById('presentation-viewer').style.display = 'none';
     document.getElementById('presentation-content-area').innerHTML = '';
+
+    if (window.presentationStream) {
+        window.presentationStream.getTracks().forEach(t => t.stop());
+        window.presentationStream = null;
+    }
 
     if (typeof window.socket !== 'undefined' && window.socket) {
         window.socket.emit('zone_broadcast', { type: 'stop_present_doc' });
@@ -3600,6 +3654,17 @@ let checkSocketInterval = setInterval(() => {
 
 // PROJECTION HUD BUTTON LOGIC
 document.addEventListener('DOMContentLoaded', () => {
+
+    let btnOpenProj = document.getElementById('btn-open-projection-modal');
+    if (btnOpenProj) btnOpenProj.onclick = () => {
+        document.getElementById('projection-options-modal').classList.remove('hidden');
+    };
+
+    let btnCloseProj = document.getElementById('btn-close-projection-modal');
+    if (btnCloseProj) btnCloseProj.onclick = () => {
+        document.getElementById('projection-options-modal').classList.add('hidden');
+    };
+
     let btnWhiteboard = document.getElementById('btn-project-whiteboard');
     if (btnWhiteboard) btnWhiteboard.onclick = () => {
         // Usa una url de pizarra colaborativa gratis genérica
@@ -3608,8 +3673,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let btnDocument = document.getElementById('btn-project-document');
     if (btnDocument) btnDocument.onclick = () => {
-        // Abre el explorador de archivos para elegir qué proyectar
-        document.getElementById('fichero-modal').classList.remove('hidden');
+        // Abre modal para subir presentación
+        document.getElementById('projection-options-modal').classList.add('hidden');
+        document.getElementById('upload-pres-modal').classList.remove('hidden');
     };
 
     let btnScreen = document.getElementById('btn-project-screen');
