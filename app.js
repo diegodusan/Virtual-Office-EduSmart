@@ -1621,30 +1621,41 @@ class UIController {
         document.querySelectorAll('.pc-icon').forEach(icon => {
             icon.addEventListener('click', (e) => {
                 let app = e.currentTarget.dataset.app;
+
+                // Hide all global views just in case
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
                 if (app === 'archivos') {
-                    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-                    let targetNav = document.querySelector('.nav-item[data-target="view-files"]');
-                    if (targetNav) targetNav.classList.add('active');
-                    this.switchView('view-files');
-                    document.getElementById('pc-os-modal').classList.add('hidden');
+                    document.getElementById('pc-app-window').classList.remove('hidden');
+                    // Hide other potential pc-apps
+                    document.getElementById('pc-app-content-archivos').classList.remove('hidden');
+                    // We might add tasks/calendar here later
+                    if (document.getElementById('pc-app-content-tareas')) document.getElementById('pc-app-content-tareas').classList.add('hidden');
+                    if (document.getElementById('pc-app-content-calendario')) document.getElementById('pc-app-content-calendario').classList.add('hidden');
+                    loadDriveFiles(); // Auto load
+
                 } else if (app === 'tareas') {
-                    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                    // Temporarily keep global switch until Tasks are moved inside PC Window
                     let targetNav = document.querySelector('.nav-item[data-target="view-tasks"]');
                     if (targetNav) targetNav.classList.add('active');
                     this.switchView('view-tasks');
                     document.getElementById('pc-os-modal').classList.add('hidden');
+
                 } else if (app === 'calendario') {
-                    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                    // Temporarily keep global switch
                     let targetNav = document.querySelector('.nav-item[data-target="view-calendar"]');
                     if (targetNav) targetNav.classList.add('active');
                     this.switchView('view-calendar');
                     document.getElementById('pc-os-modal').classList.add('hidden');
+
                 } else if (app === 'configuracion') {
                     document.getElementById('profile-modal').classList.remove('hidden');
                     document.getElementById('pc-os-modal').classList.add('hidden');
+
                 } else if (app === 'admin') {
                     openWebView("https://edusmart.dufyasesorias.com/dashboard", "Sistema Administrativo - EduSmart");
                     document.getElementById('pc-os-modal').classList.add('hidden');
+
                 } else if (app === 'tutor') {
                     openWebView("https://tutor.dufyasesorias.com/dashboard", "Sistema Tutores - Dufy Asesorías");
                     document.getElementById('pc-os-modal').classList.add('hidden');
