@@ -1859,8 +1859,11 @@ class NetworkController {
         });
 
         this.socket.on('stopPresentation', (data) => {
-            if (window._isPresentationRoom === data.roomName || window._isPresentationActive) {
-                window.dispatchEvent(new Event("pres-stop"));
+            if (window._isPresentationActive && window._presentationRoom === data.roomName) {
+                // Remove without triggering pres-stop backwards
+                window._isPresentationActive = false;
+                window._presentationOwner = null;
+                document.getElementById('presentation-viewer').classList.add('hidden');
             }
         });
 
@@ -2177,14 +2180,23 @@ function handleGoogleAuthClick() {
     }
 }
 
+// Variables de configuración de Archivos (El usuario debe llenarlas)
+const TARGET_DRIVE_FOLDER_ID = 'TU_ID_DE_CARPETA_AQUI';
+const TARGET_SPREADSHEET_ID = 'TU_ID_DE_SPREADSHEET_AQUI';
+
 async function listDriveFiles() {
     let listUI = document.getElementById('drive-files-list');
     listUI.innerHTML = '<p style="text-align:center;">Cargando archivos desde Google Drive...</p>';
     try {
+        let query = "trashed=false and (mimeType='application/vnd.google-apps.spreadsheet' or mimeType='application/pdf' or mimeType='application/vnd.google-apps.document')";
+        if (TARGET_DRIVE_FOLDER_ID && TARGET_DRIVE_FOLDER_ID !== 'TU_ID_DE_CARPETA_AQUI') {
+            query = `'${TARGET_DRIVE_FOLDER_ID}' in parents and trashed=false`;
+        }
+
         let response = await gapi.client.drive.files.list({
             'pageSize': 20,
             'fields': 'files(id, name, mimeType, webViewLink)',
-            'q': "trashed=false and (mimeType='application/vnd.google-apps.spreadsheet' or mimeType='application/pdf' or mimeType='application/vnd.google-apps.document')"
+            'q': query
         });
         let files = response.result.files;
         if (!files || files.length == 0) {
@@ -2208,6 +2220,12 @@ async function listDriveFiles() {
 }
 
 async function createNewSpreadsheet() {
+    // Si hay un spreadsheet específico configurado, se recomienda abrir ese en lugar de crear uno nuevo.
+    if (TARGET_SPREADSHEET_ID && TARGET_SPREADSHEET_ID !== 'TU_ID_DE_SPREADSHEET_AQUI') {
+        window.open(`https://docs.google.com/spreadsheets/d/${TARGET_SPREADSHEET_ID}/edit`, '_blank');
+        return;
+    }
+
     try {
         let response = await gapi.client.sheets.spreadsheets.create({
             properties: {
