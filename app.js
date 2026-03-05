@@ -663,6 +663,11 @@ class GameMap {
         return null;
     }
 
+    getRoomAt(x, y) {
+        let rs = this.floors.find(f => x >= f.x * TILE && x <= (f.x + f.w) * TILE && y >= f.y * TILE && y <= (f.y + f.h) * TILE);
+        return rs ? rs : null;
+    }
+
     _intersect(r1, r2) { return !(r2.x > r1.x + r1.w || r2.x + r2.w < r1.x || r2.y > r1.y + r1.h || r2.y + r2.h < r1.y); }
 }
 
