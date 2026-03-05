@@ -3014,6 +3014,7 @@ function mainLoop(timestamp) {
 ====================================================================== */
 // El usuario debe pegar la URL web resultante de publicar el Apps Script aquí
 const GAS_BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzkr-FUOKotoyTlNc_pZYaSsVMapqngzEij8NyV0YBMXLfUnlZJjo5JdMlOJ_cjTEd47Q/exec';
+const GAS_CITAS_URL = 'https://script.google.com/macros/s/AKfycbz9dSZDUkmcSckYqOwO3AWtXEmD1UIP5JLySpzyhosAN287X6sRIm1rPAnmE1pcmwey/exec';
 const TARGET_SPREADSHEET_ID = '1Zh2YRueqxpRFQbWMUdKRM9yunqt3HmWajXJxw0A1_jo';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -3491,6 +3492,7 @@ let currentCalMonth = new Date().getMonth();
 let currentCalYear = new Date().getFullYear();
 let cachedEvents = [];
 let cachedTasks = [];
+let cachedCitas = [];
 
 async function loadCalendar() {
     let container = document.getElementById('calendar-grid-container');
@@ -3498,19 +3500,31 @@ async function loadCalendar() {
     if (GAS_BACKEND_URL === 'pega_aqui_la_url_de_tu_google_apps_script') return;
 
     try {
-        let [resCal, resTasks] = await Promise.all([
+        let fetchPromises = [
             fetch(`${GAS_BACKEND_URL}?action=getCalendar`),
             fetch(`${GAS_BACKEND_URL}?action=getTasks`)
-        ]);
+        ];
 
-        let dataCal = await resCal.json();
-        let dataTasks = await resTasks.json();
+        if (GAS_CITAS_URL !== 'pega_aqui_la_url_de_tu_nuevo_script_de_citas') {
+            fetchPromises.push(fetch(GAS_CITAS_URL));
+        }
+
+        let responses = await Promise.all(fetchPromises);
+        let dataCal = await responses[0].json();
+        let dataTasks = await responses[1].json();
+
+        let dataCitas = { success: true, citas: [] };
+        if (responses.length > 2) {
+            dataCitas = await responses[2].json();
+        }
 
         if (!dataCal.success) throw new Error(dataCal.error || 'API Calendar Error');
         if (!dataTasks.success) throw new Error(dataTasks.error || 'API Tasks Error');
+        // Toleramos error en citas por si no han actualizado url aún
 
         cachedEvents = dataCal.events || [];
         cachedTasks = dataTasks.tasks || [];
+        cachedCitas = dataCitas.citas || [];
 
         renderCalendarGrid();
     } catch (err) {
@@ -3578,6 +3592,26 @@ function renderCalendarGrid() {
             if (tDate.getFullYear() === currentCalYear && tDate.getMonth() === currentCalMonth && tDate.getDate() === day) {
                 let statusClass = (t.status && t.status.toLowerCase() === 'resuelta') ? 'done' : '';
                 html += `<div class="cal-event-badge cal-task-badge ${statusClass}" title="Resp: ${t.responsible || 'N/A'}">T: ${t.name}</div>`;
+            }
+        });
+
+        // Agendas Citas de Google Calendar Frontend
+        cachedCitas.forEach(cita => {
+            if (!cita.startTime) return;
+            let d = new Date(cita.startTime);
+            if (d.getFullYear() === currentCalYear && d.getMonth() === currentCalMonth && d.getDate() === day) {
+                let isTesis = cita.type === "Tesis Comercial";
+                let colorClass = isTesis ? "cal-cita-tesis" : "cal-cita-coordinacion";
+                let horaStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                html += `<div class="cal-event-badge ${colorClass}" title="${cita.title}">
+                            <b>${horaStr}</b> - ${cita.type}`;
+
+                if (cita.meetLink) {
+                    html += `<a href="${cita.meetLink}" target="_blank" class="meet-join-btn" onclick="event.stopPropagation()">📹 Unirse</a>`;
+                }
+
+                html += `</div>`;
             }
         });
 
