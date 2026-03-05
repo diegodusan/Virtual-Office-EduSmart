@@ -3151,15 +3151,32 @@ function renderDriveFolders() {
                 <span>📁 [Raíz]</span>
              </div>`;
 
-    // Buscar items que sean carpetas y estén en la Raíz
-    let folders = _driveDataCache.filter(i => i.isFolder && i.parent === "Raíz");
-    folders.forEach(f => {
-        let fStyle = (_currentFolderId === f.name) ? 'background: rgba(250, 204, 21, 0.2); border-left: 3px solid #facc15;' : 'cursor:pointer;';
-        // Context menú sobre carpetas por si las quieren eliminar después
-        html += `<div class="file-item flex-row space-between align-center" onclick="changeDriveFolder('${f.name}', '${f.name}')" oncontextmenu="handleDriveContextMenu(event, '${f.id}', '${f.name}', '${f.url}', true)" style="${fStyle} padding:8px 12px; border-radius:4px; margin-bottom: 5px; color:#f8fafc;">
-                    <span style="padding-left:15px; font-size:14px; color:#fef08a; font-weight:bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">📁 [+] ${f.name}</span>
-                 </div>`;
-    });
+    // Función recursiva para soportar múltiples niveles (N niveles)
+    function buildFolderHTML(parentId, paddingLeft) {
+        let folderHtml = '';
+        let folders = _driveDataCache.filter(i => i.isFolder && i.parent === parentId);
+
+        folders.forEach(f => {
+            let fStyle = (_currentFolderId === f.id || _currentFolderId === f.name) ? 'background: rgba(250, 204, 21, 0.2); border-left: 3px solid #facc15;' : 'cursor:pointer;';
+            folderHtml += `<div class="file-item flex-row space-between align-center" onclick="changeDriveFolder('${f.id}', '${f.name}')" oncontextmenu="handleDriveContextMenu(event, '${f.id}', '${f.name}', '${f.url}', true)" style="${fStyle} padding:8px 12px; border-radius:4px; margin-bottom: 5px; color:#f8fafc; padding-left:${paddingLeft}px;">
+                        <span style="font-size:14px; color:#fef08a; font-weight:bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">📁 ${f.name}</span>
+                     </div>`;
+
+            // Llamar recursivamente para cada subcarpeta. Revisar por f.id y f.name ya que el backend podría usar cualquiera de los dos como parent.
+            let subFoldersById = _driveDataCache.filter(i => i.isFolder && i.parent === f.id);
+            if (subFoldersById.length > 0) {
+                folderHtml += buildFolderHTML(f.id, paddingLeft + 15);
+            } else {
+                let subFoldersByName = _driveDataCache.filter(i => i.isFolder && i.parent === f.name);
+                if (subFoldersByName.length > 0 && f.id !== f.name) {
+                    folderHtml += buildFolderHTML(f.name, paddingLeft + 15);
+                }
+            }
+        });
+        return folderHtml;
+    }
+
+    html += buildFolderHTML('Raíz', 25);
 
     if (listUIFoldersPC) listUIFoldersPC.innerHTML = html;
     if (listUIFoldersHUD) listUIFoldersHUD.innerHTML = html;
@@ -3180,8 +3197,13 @@ function renderDriveFiles() {
     let listUIFilesHUD = document.getElementById('hud-drive-files-list');
     let html = '';
 
-    // Solo archivos (no carpetas puras) correspondientes a _currentFolderId
-    let files = _driveDataCache.filter(i => !i.isFolder && i.parent === _currentFolderId);
+    // Cobertura robusta de identificadores
+    let currentFolderObj = _driveDataCache.find(i => i.id === _currentFolderId || i.name === _currentFolderId);
+    let nameToMatch = currentFolderObj ? currentFolderObj.name : _currentFolderId;
+    let idToMatch = currentFolderObj ? currentFolderObj.id : _currentFolderId;
+
+    // Solo archivos correspondientes a _currentFolderId (puede ser su ID o Nombre)
+    let files = _driveDataCache.filter(i => !i.isFolder && (i.parent === idToMatch || i.parent === nameToMatch));
 
     if (files.length > 0) {
         files.forEach((file) => {
@@ -3357,7 +3379,7 @@ async function uploadDriveFileSpecific(inputEl, btnRefEl) {
     }
 
     try {
-        let file = input.files[0];
+        let file = inputEl.files[0];
         let base64 = await new Promise((resolve) => {
             let reader = new FileReader();
             reader.onload = e => resolve(e.target.result);
