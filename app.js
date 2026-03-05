@@ -1717,9 +1717,15 @@ class UIController {
             if (s.id !== viewId) s.classList.add('hidden');
         });
         document.getElementById(viewId).classList.add('active');
-        if (viewId === 'view-map' && _renderer) {
-            _renderer.resize();
+        if (viewId === 'view-map' && window._renderer) {
+            window._renderer.resize();
             window.focus();
+        } else if (viewId === 'view-tasks') {
+            if (typeof loadTasks === 'function') loadTasks();
+        } else if (viewId === 'view-calendar') {
+            if (typeof loadCalendar === 'function') loadCalendar();
+        } else if (viewId === 'view-files') {
+            if (typeof loadDriveFiles === 'function') loadDriveFiles();
         }
     }
 
@@ -2112,7 +2118,7 @@ function mainLoop(timestamp) {
    9. GOOGLE APPS SCRIPT INTEGRATION (DRIVE, TASKS, CALENDAR)
 ====================================================================== */
 // El usuario debe pegar la URL web resultante de publicar el Apps Script aquí
-const GAS_BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzD5pq6b-FusIosz-PBoubm-w2A122o6s8kvTsxc7YdXgKOeAns-TXIfcpNo-J-HoMkzA/exec';
+const GAS_BACKEND_URL = 'https://script.google.com/macros/s/AKfycbx7Qzs34aOdiklwFAjdSw7Zwm5ES-yG6bnf9CFGnTWjf5PV0qDn2tXbTqBM4iC0Zye4zA/exec';
 const TARGET_SPREADSHEET_ID = '1Zh2YRueqxpRFQbWMUdKRM9yunqt3HmWajXJxw0A1_jo';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -2125,6 +2131,33 @@ document.addEventListener('DOMContentLoaded', () => {
     // Tareas
     const btnRefTasks = document.getElementById('btn-refresh-tasks');
     if (btnRefTasks) btnRefTasks.onclick = loadTasks;
+
+    const btnCreateTask = document.getElementById('btn-create-task');
+    if (btnCreateTask) {
+        btnCreateTask.onclick = async () => {
+            let name = document.getElementById('input-task-name').value;
+            let date = document.getElementById('input-task-date').value;
+            let resp = document.getElementById('input-task-resp').value;
+            if (!name || !date) return alert("Ingresa al menos el nombre y la fecha de la tarea.");
+
+            btnCreateTask.textContent = "...";
+            btnCreateTask.disabled = true;
+            try {
+                let res = await fetch(GAS_BACKEND_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'createTask', name: name, deadline: date, responsible: resp })
+                });
+                let data = await res.json();
+                if (!data.success) throw new Error(data.error);
+                document.getElementById('input-task-name').value = '';
+                document.getElementById('input-task-date').value = '';
+                document.getElementById('input-task-resp').value = '';
+                loadTasks();
+            } catch (e) { alert(e.message); }
+            btnCreateTask.textContent = "+ Nueva Tarea";
+            btnCreateTask.disabled = false;
+        };
+    }
 
     // Calendario
     const btnRefCal = document.getElementById('btn-refresh-cal');
