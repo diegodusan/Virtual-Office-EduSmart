@@ -3254,10 +3254,25 @@ function renderDriveFiles() {
 
 function openDrivePreviewUrl(url, name) {
     if (!url) return;
-    let previewUrl = url;
-    if (previewUrl.includes('/view')) previewUrl = previewUrl.replace('/view', '/preview');
-    if (previewUrl.includes('/edit')) previewUrl = previewUrl.replace('/edit', '/preview');
-    window.openWebViewGlobal(previewUrl, "Visualizador: " + name);
+    let finalUrl = url;
+
+    // Si es un documento nativo de Google (Docs, Sheets, Slides), forzamos /edit para asegurar la UI de comentarios completa
+    if (finalUrl.includes('docs.google.com')) {
+        if (finalUrl.includes('/view')) finalUrl = finalUrl.replace('/view', '/edit');
+    } else if (finalUrl.includes('drive.google.com')) {
+        // Para archivos subidos genéricos (PDFs, Imágenes, Docx en Drive)
+        // Mantenemos /view en lugar de reemplazarlo por /preview genérico, ya que /preview oculta la barra de comentarios.
+        if (finalUrl.includes('/preview')) finalUrl = finalUrl.replace('/preview', '/view');
+    }
+
+    // Aseguramos que Drive permita embeberlo y cargue la interfaz colaborativa
+    if (!finalUrl.includes('?')) {
+        finalUrl += '?usp=sharing&embedded=true';
+    } else if (!finalUrl.includes('embedded=true')) {
+        finalUrl += '&embedded=true';
+    }
+
+    window.openWebViewGlobal(finalUrl, "Visualizador: " + name);
 }
 
 
