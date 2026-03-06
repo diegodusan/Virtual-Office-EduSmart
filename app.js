@@ -3013,7 +3013,7 @@ function mainLoop(timestamp) {
    9. GOOGLE APPS SCRIPT INTEGRATION (DRIVE, TASKS, CALENDAR)
 ====================================================================== */
 // El usuario debe pegar la URL web resultante de publicar el Apps Script aquí
-const GAS_BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzkr-FUOKotoyTlNc_pZYaSsVMapqngzEij8NyV0YBMXLfUnlZJjo5JdMlOJ_cjTEd47Q/exec';
+const GAS_BACKEND_URL = 'https://script.google.com/macros/s/AKfycbyHezHz2hQBbvV4-WUCag1I_L7eKQQd-9a4jJt8Xh6B4f5TzhTuOuR8QaCxVaRtG_AWZA/exec';
 const GAS_CITAS_URL = 'https://script.google.com/macros/s/AKfycbz9dSZDUkmcSckYqOwO3AWtXEmD1UIP5JLySpzyhosAN287X6sRIm1rPAnmE1pcmwey/exec';
 const TARGET_SPREADSHEET_ID = '1Zh2YRueqxpRFQbWMUdKRM9yunqt3HmWajXJxw0A1_jo';
 
