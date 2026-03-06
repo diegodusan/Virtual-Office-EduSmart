@@ -3133,6 +3133,9 @@ async function loadDriveFiles() {
             if (i.isFolder === undefined) i.isFolder = (i.mimeType && i.mimeType.includes("folder"));
         });
 
+        console.log("=== DRIVE CACHE LOADED ===");
+        console.log(_driveDataCache);
+
         renderDriveFolders();
         renderDriveFiles();
 
