@@ -1657,6 +1657,13 @@ class UIController {
                 document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
                 if (app === 'archivos') {
+                    // Update global state for specific Drive folder target
+                    let driveId = e.currentTarget.dataset.driveId || '1Lzgy6VF7IwvN3j20rstJHY-0RuSLT__T';
+                    let driveName = e.currentTarget.dataset.driveName || 'Raíz Principal';
+                    _globalDriveRootFolderId = driveId;
+                    _globalDriveRootFolderName = driveName;
+                    _currentFolderId = 'Raíz';
+
                     document.getElementById('pc-app-window').classList.remove('hidden');
                     document.getElementById('btn-pc-home').classList.remove('hidden');
                     // Hide other potential pc-apps
@@ -1664,6 +1671,11 @@ class UIController {
                     // We might add tasks/calendar here later
                     if (document.getElementById('pc-app-content-tareas')) document.getElementById('pc-app-content-tareas').classList.add('hidden');
                     if (document.getElementById('pc-app-content-calendario')) document.getElementById('pc-app-content-calendario').classList.add('hidden');
+
+                    // Update headers
+                    let hPC = document.getElementById('drive-files-header');
+                    if (hPC) hPC.innerHTML = `Contenido de "<strong>${driveName}</strong>"`;
+
                     loadDriveFiles(); // Auto load
 
                 } else if (app === 'tareas') {
@@ -3050,7 +3062,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (btnRefFilesHUD) btnRefFilesHUD.innerHTML = "Creando...";
                 let res = await fetch(GAS_BACKEND_URL, {
                     method: 'POST',
-                    body: JSON.stringify({ action: 'createFolder', folderName: fn })
+                    body: JSON.stringify({ action: 'createFolder', folderName: fn, parentFolderId: _currentFolderId })
                 });
                 let data = await res.json();
                 if (btnRefFilesHUD) btnRefFilesHUD.innerHTML = "↻ Cargar";
@@ -3102,6 +3114,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 let _driveDataCache = []; // Almacena todos los items (carpetas y archivos) del backend
 let _currentFolderId = 'Raíz'; // Carpeta actuálmente seleccionada en la vista izquierda
+let _globalDriveRootFolderId = '1Lzgy6VF7IwvN3j20rstJHY-0RuSLT__T'; // Carpeta raíz base del drive seleccionado
+let _globalDriveRootFolderName = 'Raíz Principal';
 
 async function loadDriveFiles() {
     let listUIFolders = document.getElementById('drive-folders-list');
@@ -3120,7 +3134,7 @@ async function loadDriveFiles() {
     }
 
     try {
-        let res = await fetch(`${GAS_BACKEND_URL}?action=getFiles`);
+        let res = await fetch(`${GAS_BACKEND_URL}?action=getFiles&rootFolderId=${_globalDriveRootFolderId}`);
         let data = await res.json();
         if (!data.success) throw new Error(data.error || "Falla al conectar con Google Apps Script");
 
@@ -3332,7 +3346,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (btnRef) btnRef.innerHTML = "Creando...";
                 let res = await fetch(GAS_BACKEND_URL, {
                     method: 'POST',
-                    body: JSON.stringify({ action: 'createFolder', folderName: fn })
+                    body: JSON.stringify({ action: 'createFolder', folderName: fn, parentFolderId: _currentFolderId, rootFolderId: _globalDriveRootFolderId })
                 });
                 let data = await res.json();
                 if (btnRef) btnRef.innerHTML = "↻ Cargar";
@@ -3396,7 +3410,9 @@ async function uploadDriveFileSpecific(inputEl, btnRefEl) {
                 action: 'uploadFile',
                 fileName: file.name,
                 mimeType: file.type,
-                base64: base64
+                base64: base64,
+                parentFolderId: _currentFolderId,
+                rootFolderId: _globalDriveRootFolderId
             })
         });
 
