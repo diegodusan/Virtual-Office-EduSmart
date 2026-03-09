@@ -693,6 +693,13 @@ class BasePlayer {
 
         this.isWorking = false;
         this.sortY = 0;
+
+        // Entidad Mascota Interpolada
+        this.petX = x;
+        this.petY = y;
+        this.petTimer = 0;
+        this.petFrame = 0;
+        this.petFacingLeft = false;
     }
 
     updateAnim(dt, isMoving) {
@@ -705,6 +712,37 @@ class BasePlayer {
             this.frame = 0; this.timer = 0;
         }
         this.sortY = this.y + this.h / 2;
+
+        // Físicas de la Mascota Interpolada (Lerp)
+        if (this.props.petType && this.props.petType !== 'ninguno') {
+            let dx = this.x - this.petX;
+            let dy = this.y - this.petY;
+            let distToPlayer = Math.sqrt(dx * dx + dy * dy);
+
+            // Si está muy lejos, teletransportarlo
+            if (distToPlayer > 300) {
+                this.petX = this.x; this.petY = this.y;
+            } else if (distToPlayer > 30) {
+                // Lerp suave hacia el jugador si está a más de 30px (para no solapar)
+                let petSpeed = 3.5 * dt;
+                let angle = Math.atan2(dy, dx);
+                // Punto objetivo 25px detrás del jugador
+                let targetX = this.x - Math.cos(angle) * 25;
+                let targetY = this.y - Math.sin(angle) * 25;
+
+                this.petX += (targetX - this.petX) * petSpeed;
+                this.petY += (targetY - this.petY) * petSpeed;
+
+                this.petTimer += dt * 10;
+                this.petFrame = Math.floor(this.petTimer) % 4;
+
+                // Rotación visual
+                if (targetX < this.petX - 1) this.petFacingLeft = true;
+                else if (targetX > this.petX + 1) this.petFacingLeft = false;
+            } else {
+                this.petFrame = 0;
+            }
+        }
     }
 
     render(ctx) {
@@ -1096,6 +1134,11 @@ class BasePlayer {
             drawRect(cx + 8, headY + 4, 4, 1, '#1e293b', 'transparent', 0); // Tira der
         }
 
+        // Renderizado de Mascota
+        if (this.props.petType && this.props.petType !== 'ninguno') {
+            this.renderPet(ctx);
+        }
+
         this.drawLabel(ctx);
     }
 
@@ -1140,10 +1183,6 @@ class BasePlayer {
                 ctx.fill(); ctx.stroke();
 
                 // Emoji
-                ctx.font = "20px Inter";
-                ctx.fillStyle = "#000"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-                ctx.fillText(this.activeReaction, this.x, ry + 2);
-
                 ctx.restore();
             } else {
                 this.activeReaction = null;
@@ -1163,6 +1202,135 @@ class BasePlayer {
         ctx.fillText(vipStar + this.nickname, bx + 24, by + 13);
         ctx.fillStyle = this.isWorking ? "#facc15" : "#94a3b8";
         ctx.fillText(subfix, bx + 24 + ctx.measureText(vipStar + this.nickname).width, by + 13);
+    }
+
+    renderPet(ctx) {
+        const type = this.props.petType;
+        const variant = this.props.petVariant || 'pastor';
+        const color = this.props.petColor || '#ffffff';
+
+        let px = this.petX; let py = this.petY;
+
+        ctx.save();
+        ctx.translate(px, py);
+        if (this.petFacingLeft) ctx.scale(-1, 1);
+
+        switch (type) {
+            case 'perro': this.drawDog(ctx, variant, color); break;
+            case 'gato': this.drawCat(ctx, variant, color); break;
+            case 'pajaro': this.drawBird(ctx, variant, color); break;
+        }
+
+        ctx.restore();
+    }
+
+    drawDog(ctx, variant, color) {
+        let isWalking = this.petFrame > 0 && this.petFrame % 2 !== 0;
+        let walkOffset = isWalking ? 2 : 0;
+
+        ctx.fillStyle = color; ctx.strokeStyle = "#1e293b"; ctx.lineWidth = 1;
+
+        if (variant === 'salchicha') drawRoundedRect(-8, -6, 18, 6, 3, color);
+        else drawRoundedRect(-6, -8, 14, 8, 3, color);
+
+        drawRect(-4, -2 - walkOffset, 2, 4 + walkOffset, color, "#1e293b", 1);
+        drawRect(4, -2 + walkOffset, 2, 4 - walkOffset, color, "#1e293b", 1);
+
+        if (variant === 'pug') drawRoundedRect(6, -10, 8, 8, 3, color);
+        else drawRoundedRect(4, -12, 8, 8, 3, color);
+
+        if (variant === 'pug') drawArc(-6, -6, 2, color, "transparent", 0);
+        else drawRect(-8, -8 + (isWalking ? 2 : 0), 4, 2, color, "transparent", 0);
+
+        if (variant === 'pastor') {
+            drawRect(6, -14, 2, 4, color, "transparent", 0);
+            drawRect(6, -8, 4, 2, "#9ca3af", "transparent", 0);
+        } else if (variant === 'golden') {
+            drawRoundedRect(4, -10, 3, 6, 2, color);
+            drawRect(8, -8, 2, 2, "#fcd34d", "transparent", 0);
+        } else {
+            drawRect(6, -11, 2, 3, color, "transparent", 0);
+        }
+
+        ctx.fillStyle = "#000";
+        if (variant === 'pug') ctx.fillRect(10, -8, 2, 2);
+        else ctx.fillRect(8, -10, 2, 2);
+    }
+
+    drawCat(ctx, variant, color) {
+        let isWalking = this.petFrame > 0 && this.petFrame % 2 !== 0;
+        let walkOffset = isWalking ? 1 : 0;
+
+        ctx.fillStyle = color; ctx.strokeStyle = "#1e293b"; ctx.lineWidth = 1;
+
+        let bodyC = color;
+        if (variant === 'siames') bodyC = '#fef08a';
+        if (variant === 'esfinge') bodyC = '#fecaca';
+
+        drawRoundedRect(-6, -7, 12, 7, 3, bodyC);
+
+        drawRect(-4, -1 - walkOffset, 2, 3, variant === 'siames' ? color : bodyC, "transparent", 0);
+        drawRect(4, -1 + walkOffset, 2, 3, variant === 'siames' ? color : bodyC, "transparent", 0);
+
+        ctx.beginPath();
+        if (variant === 'persa') {
+            ctx.moveTo(-6, -4); ctx.lineTo(-12, -8 + walkOffset); ctx.lineTo(-10, -2);
+            ctx.fillStyle = color; ctx.fill();
+        } else {
+            drawRect(-10, -8 + (isWalking ? 2 : 0), 4, 2, variant === 'siames' ? color : bodyC, "transparent", 0);
+            drawRect(-10, -10 + (isWalking ? 2 : 0), 2, 4, variant === 'siames' ? color : bodyC, "transparent", 0);
+        }
+
+        let headC = (variant === 'siames') ? color : bodyC;
+        drawRoundedRect(4, -11, 6, 6, 2, headC);
+
+        if (variant !== 'callejero') {
+            ctx.beginPath(); ctx.moveTo(4, -11); ctx.lineTo(6, -14); ctx.lineTo(7, -11); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(8, -11); ctx.lineTo(10, -14); ctx.lineTo(11, -11); ctx.fill();
+        } else {
+            ctx.beginPath(); ctx.moveTo(4, -11); ctx.lineTo(5, -13); ctx.lineTo(6, -11); ctx.fill();
+        }
+
+        ctx.fillStyle = (variant === 'esfinge') ? "#38bdf8" : "#000";
+        ctx.fillRect(8, -9, 1, 2);
+    }
+
+    drawBird(ctx, variant, color) {
+        let isFlapping = this.petFrame !== 0;
+        let floatY = -14 + (isFlapping ? -2 : 0);
+
+        ctx.fillStyle = color; ctx.strokeStyle = "#1e293b"; ctx.lineWidth = 1;
+
+        if (variant === 'cuervo' || variant === 'paloma') {
+            drawRoundedRect(-4, floatY - 4, 8, 6, 3, color);
+        } else {
+            drawRoundedRect(-4, floatY - 6, 8, 8, 4, color);
+        }
+
+        ctx.fillStyle = (variant === 'loro') ? '#ef4444' : color;
+        if (isFlapping) {
+            drawRoundedRect(-2, floatY - 8, 4, 6, 2, ctx.fillStyle);
+        } else {
+            drawRoundedRect(-2, floatY - 2, 6, 4, 2, ctx.fillStyle);
+        }
+
+        ctx.fillStyle = (variant === 'cuervo') ? '#000' : '#f59e0b';
+        if (variant === 'loro') {
+            ctx.fillRect(4, floatY - 5, 3, 3);
+        } else {
+            ctx.fillRect(4, floatY - 3, 2, 2);
+        }
+
+        if (variant === 'buho') {
+            ctx.fillStyle = color; ctx.fillRect(2, floatY - 8, 2, 2);
+        }
+
+        ctx.fillStyle = "#000";
+        if (variant === 'buho') {
+            ctx.fillStyle = "#fef08a"; ctx.fillRect(2, floatY - 5, 2, 2); ctx.fillStyle = "#000"; ctx.fillRect(2, floatY - 4, 1, 1);
+        } else {
+            ctx.fillRect(2, floatY - 4, 1, 1);
+        }
     }
 }
 
@@ -1455,8 +1623,71 @@ class UIController {
                     if (data.props.facialHair) document.getElementById('select-facialhair').value = data.props.facialHair;
                     if (data.props.outfit) document.getElementById('select-outfit').value = data.props.outfit;
                     if (data.props.accessory) document.getElementById('select-accessory').value = data.props.accessory;
+
+                    if (data.props.petType) {
+                        let sel = document.getElementById('select-pet-type');
+                        if (sel) {
+                            sel.value = data.props.petType;
+                            sel.dispatchEvent(new Event('change')); // Trigger variant filling
+                        }
+                    }
+                    if (data.props.petVariant) {
+                        setTimeout(() => {
+                            if (document.getElementById('select-pet-variant')) document.getElementById('select-pet-variant').value = data.props.petVariant;
+                        }, 50); // Small delay to let variants array construct
+                    }
+                    if (data.props.petColor) this.activateColor('#picker-pet-color', data.props.petColor);
                 }
             } catch (e) { }
+        }
+    }
+
+    initPetCustomizer() {
+        const petVariants = {
+            'perro': [
+                { val: 'pastor', text: 'Pastor Lobero' },
+                { val: 'pug', text: 'Pug Chato' },
+                { val: 'salchicha', text: 'Perro Salchicha' },
+                { val: 'golden', text: 'Orejas Caídas (Golden)' }
+            ],
+            'gato': [
+                { val: 'persa', text: 'Gato Persa' },
+                { val: 'siames', text: 'Siamés Delgado' },
+                { val: 'callejero', text: 'Orejas Rasgadas' },
+                { val: 'esfinge', text: 'Esfinge (Sin pelo)' }
+            ],
+            'pajaro': [
+                { val: 'cuervo', text: 'Cuervo' },
+                { val: 'loro', text: 'Loro Guacamayo' },
+                { val: 'paloma', text: 'Paloma Urbana' },
+                { val: 'buho', text: 'Búho Volador' }
+            ]
+        };
+
+        const typeSel = document.getElementById('select-pet-type');
+        const varCon = document.getElementById('pet-variant-container');
+        const varSel = document.getElementById('select-pet-variant');
+        const colCon = document.getElementById('pet-color-container');
+
+        if (typeSel) {
+            typeSel.addEventListener('change', (e) => {
+                let type = e.target.value;
+                if (type === 'ninguno') {
+                    varCon.style.display = 'none';
+                    colCon.style.display = 'none';
+                } else {
+                    varCon.style.display = 'flex';
+                    colCon.style.display = 'flex';
+                    varSel.innerHTML = '';
+                    petVariants[type].forEach(v => {
+                        let opt = document.createElement('option');
+                        opt.value = v.val;
+                        opt.textContent = v.text;
+                        varSel.appendChild(opt);
+                    });
+                }
+                this.updatePreviewData();
+            });
         }
     }
 
@@ -1482,6 +1713,10 @@ class UIController {
         this.p.props.facialHair = document.getElementById('select-facialhair').value || 'ninguno';
         this.p.props.outfit = document.getElementById('select-outfit').value || 'casual';
         this.p.props.accessory = document.getElementById('select-accessory').value || 'ninguno';
+
+        this.p.props.petType = document.getElementById('select-pet-type').value || 'ninguno';
+        this.p.props.petVariant = document.getElementById('select-pet-variant').value || 'pastor';
+        this.p.props.petColor = document.querySelector('#picker-pet-color .active')?.dataset?.color || '#ffffff';
 
         this.renderAvatarPreview();
     }
@@ -1512,17 +1747,30 @@ class UIController {
         document.querySelectorAll('.color-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 let parent = e.target.parentElement;
-                parent.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
-                e.target.classList.add('active');
+                // Only remove active from siblings within the same color picker group
+                if (parent.id === 'picker-skin' || parent.id === 'picker-hair' || parent.id === 'picker-shirt' || parent.id === 'picker-pants' || parent.id === 'picker-pet-color') {
+                    let oldActive = parent.querySelector('.color-btn.active');
+                    if (oldActive) oldActive.classList.remove('active');
+                    e.currentTarget.classList.add('active');
+                }
                 this.updatePreviewData();
             });
         });
 
         let inputs = ['input-nickname', 'select-role', 'select-body', 'select-hairstyle', 'select-facialhair', 'select-outfit', 'select-accessory'];
         inputs.forEach(id => {
-            document.getElementById(id).addEventListener('change', () => this.updatePreviewData());
-            document.getElementById(id).addEventListener('input', () => this.updatePreviewData());
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('change', () => this.updatePreviewData());
+                element.addEventListener('input', () => this.updatePreviewData());
+            }
         });
+
+        // Add event listeners for pet customization
+        document.getElementById('select-pet-type').addEventListener('change', () => this.updatePreviewData());
+        document.getElementById('select-pet-variant').addEventListener('change', () => this.updatePreviewData());
+
+        this.initPetCustomizer(); // Initialize pet customizer logic
 
         document.getElementById('btn-enter').addEventListener('click', () => {
             this.updatePreviewData();
@@ -1636,6 +1884,22 @@ class UIController {
         window.openWebViewGlobal = openWebView;
         window._switchViewGlobal = (id) => this.switchView(id);
 
+        // --- SPOTIFY UI ---
+        const btnToggleSpotify = document.getElementById('btn-toggle-spotify');
+        const spotifyMiniPlayer = document.getElementById('spotify-mini-player');
+        const btnCloseSpotify = document.getElementById('btn-close-spotify');
+
+        if (btnToggleSpotify && spotifyMiniPlayer) {
+            btnToggleSpotify.addEventListener('click', () => {
+                spotifyMiniPlayer.classList.toggle('hidden');
+            });
+        }
+        if (btnCloseSpotify && spotifyMiniPlayer) {
+            btnCloseSpotify.addEventListener('click', () => {
+                spotifyMiniPlayer.classList.add('hidden');
+            });
+        }
+
         // --- PC OS DESKTOP LOGIC ---
         document.getElementById('btn-close-pc').addEventListener('click', () => {
             document.getElementById('pc-os-modal').classList.add('hidden');
@@ -1694,6 +1958,10 @@ class UIController {
 
                 } else if (app === 'configuracion') {
                     document.getElementById('profile-modal').classList.remove('hidden');
+                    document.getElementById('pc-os-modal').classList.add('hidden');
+
+                } else if (app === 'canva') {
+                    openWebView("https://www.canva.com/ai", "Canva AI - Diseño Inteligente");
                     document.getElementById('pc-os-modal').classList.add('hidden');
 
                 } else if (app === 'admin') {
